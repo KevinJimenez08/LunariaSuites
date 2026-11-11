@@ -1778,8 +1778,8 @@ let paqueteNombre = '';
     try {
       const transporter = nodemailer.createTransport({
         host: SMTP_HOST,
-        port: Number(SMTP_PORT || 587),
-        secure: String(SMTP_SECURE || 'false').toLowerCase() === 'true',
+        port: Number(SMTP_PORT || 456),
+        secure: String(SMTP_SECURE || 'true').toLowerCase() === 'true',
         auth: {
           user: SMTP_USER,
           pass: SMTP_PASS
