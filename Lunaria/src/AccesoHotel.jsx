@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, LockKeyhole, Mail, UserRound, Phone, MoonStar } from 'lucide-react';
 import './AccesoHotel.css';
-const API = 'http://localhost:3000/api/auth';
+const API = 'https://lunariasuites.onrender.com/api/auth';
 
 export default function AccesoHotel({ modo, cambiarModo, volver, alEntrar, mensaje = '' }) {
   const [form, setForm] = useState({ Nombre: '', Email: '', Telefono: '', contraseña: '' });

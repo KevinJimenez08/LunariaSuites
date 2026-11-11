@@ -43,13 +43,13 @@ export default function GestionHabitaciones() {
 
   const cargarHabitaciones = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:3000/api/habitaciones', { headers: authHeaders() });
+      const res = await fetch('https://lunariasuites.onrender.com/api/habitaciones', { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setHabitaciones(data);
       }
-      const unidadesRes = await fetch('http://localhost:3000/api/habitaciones/unidades', { headers: authHeaders() });
-      const sedesRes = await fetch('http://localhost:3000/api/sedes'); if (sedesRes.ok) setSedes(await sedesRes.json());
+      const unidadesRes = await fetch('https://lunariasuites.onrender.com/api/habitaciones/unidades', { headers: authHeaders() });
+      const sedesRes = await fetch('https://lunariasuites.onrender.com/api/sedes'); if (sedesRes.ok) setSedes(await sedesRes.json());
       if (unidadesRes.ok) setUnidadesFisicas(await unidadesRes.json());
     } catch (err) {
       console.error('Error al cargar habitaciones:', err);
@@ -63,7 +63,7 @@ export default function GestionHabitaciones() {
   const handleGuardarNueva = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:3000/api/habitaciones', {
+      const res = await fetch('https://lunariasuites.onrender.com/api/habitaciones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
@@ -89,7 +89,7 @@ export default function GestionHabitaciones() {
   const handleGuardarEdicion = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://localhost:3000/api/habitaciones/${habitacionEditando.idHabitaciones}`, {
+      const res = await fetch(`https://lunariasuites.onrender.com/api/habitaciones/${habitacionEditando.idHabitaciones}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
@@ -113,7 +113,7 @@ export default function GestionHabitaciones() {
 
   const ejecutarEliminacion = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/api/habitaciones/${confirmarEliminarId}`, { method: 'DELETE', headers: authHeaders() });
+      const res = await fetch(`https://lunariasuites.onrender.com/api/habitaciones/${confirmarEliminarId}`, { method: 'DELETE', headers: authHeaders() });
 
       if (res.ok) {
         setConfirmarEliminarId(null);
@@ -130,7 +130,7 @@ export default function GestionHabitaciones() {
   const cambiarEstadoUnidad = async (unidad, nuevoEstado) => {
     setActualizandoUnidad(unidad.idUnidad);
     try {
-      const res = await fetch(`http://localhost:3000/api/habitaciones/unidades/${unidad.idUnidad}/estado`, {
+      const res = await fetch(`https://lunariasuites.onrender.com/api/habitaciones/unidades/${unidad.idUnidad}/estado`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ estado: nuevoEstado })

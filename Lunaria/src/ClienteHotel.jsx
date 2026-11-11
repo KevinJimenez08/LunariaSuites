@@ -3,7 +3,7 @@ import { ArrowRight, BedDouble, CalendarDays, Check, Menu, Sparkles, Waves, X, U
 import './ClienteHotel.css';
 import GestionComentarios from './GestionComentarios.jsx';
 
-const API = 'http://localhost:3000/api';
+const API = 'https://lunariasuites.onrender.com/api';
 const COP = (n) => Number(n || 0).toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 // Una ruta vacía/null significa que el registro no tiene fotografía. No se asignan imágenes de respaldo.
 const imagePath = (value) => {

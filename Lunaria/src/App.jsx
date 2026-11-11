@@ -42,7 +42,7 @@ function CambiarContrasena({ sesion }) {
     if (nueva !== confirmar) return setError('La confirmación no coincide con la nueva contraseña.');
     setCargando(true);
     try {
-      const response = await fetch('http://localhost:3000/api/auth/cambiar-contrasena', {
+      const response = await fetch('https://lunariasuites.onrender.com/api/auth/cambiar-contrasena', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sesion?.token || ''}` },
         body: JSON.stringify({ contrasenaActual: actual, nuevaContrasena: nueva })
@@ -84,7 +84,7 @@ function GestionCuenta({ sesion, onCerrarSesion }) {
     if (!window.confirm(texto)) return;
     setCargando(true);
     try {
-      const response = await fetch(tipo === 'desactivar' ? 'http://localhost:3000/api/auth/desactivar-cuenta' : 'http://localhost:3000/api/auth/cuenta', {
+      const response = await fetch(tipo === 'desactivar' ? 'https://lunariasuites.onrender.com/api/auth/desactivar-cuenta' : 'https://lunariasuites.onrender.com/api/auth/cuenta', {
         method: tipo === 'desactivar' ? 'POST' : 'DELETE',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sesion?.token || ''}` },
         body: JSON.stringify({ contrasena })

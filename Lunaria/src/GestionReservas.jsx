@@ -53,12 +53,12 @@ export default function GestionReservas() {
   const cargarDatos = useCallback(async () => {
     try {
       const [resRes, resPaq, resServ, resHab, resCli, resSedes] = await Promise.all([
-        fetch('http://localhost:3000/api/reservas', { headers: authHeaders() }),
-        fetch('http://localhost:3000/api/paquetes', { headers: authHeaders() }),
-        fetch('http://localhost:3000/api/servicios', { headers: authHeaders() }),
-        fetch('http://localhost:3000/api/habitaciones', { headers: authHeaders() }),
-        fetch('http://localhost:3000/api/clientes', { headers: authHeaders() }),
-        fetch('http://localhost:3000/api/sedes')
+        fetch('https://lunariasuites.onrender.com/api/reservas', { headers: authHeaders() }),
+        fetch('https://lunariasuites.onrender.com/api/paquetes', { headers: authHeaders() }),
+        fetch('https://lunariasuites.onrender.com/api/servicios', { headers: authHeaders() }),
+        fetch('https://lunariasuites.onrender.com/api/habitaciones', { headers: authHeaders() }),
+        fetch('https://lunariasuites.onrender.com/api/clientes', { headers: authHeaders() }),
+        fetch('https://lunariasuites.onrender.com/api/sedes')
       ]);
 
       if (resRes.ok) setReservas(await resRes.json());
@@ -254,7 +254,7 @@ export default function GestionReservas() {
           .filter((id) => !esServicioIncluidoEnPaquete(id, nuevaReserva.idPaquetesFK))
       };
 
-      const res = await fetch('http://localhost:3000/api/reservas', {
+      const res = await fetch('https://lunariasuites.onrender.com/api/reservas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(payload)
@@ -309,7 +309,7 @@ export default function GestionReservas() {
           .filter((id) => !esServicioIncluidoEnPaquete(id, reservaEditando.idPaquetesFK))
       };
 
-      const res = await fetch(`http://localhost:3000/api/reservas/${reservaEditando.idReservas}`, {
+      const res = await fetch(`https://lunariasuites.onrender.com/api/reservas/${reservaEditando.idReservas}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(payload)
@@ -331,7 +331,7 @@ export default function GestionReservas() {
   // Eliminar reserva
   const ejecutarEliminacion = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/api/reservas/${confirmarEliminarId}`, { method: 'DELETE', headers: authHeaders() });
+      const res = await fetch(`https://lunariasuites.onrender.com/api/reservas/${confirmarEliminarId}`, { method: 'DELETE', headers: authHeaders() });
 
       if (res.ok) {
         setConfirmarEliminarId(null);
@@ -363,7 +363,7 @@ export default function GestionReservas() {
 
   const enviarGestionPago = async (reserva, accion, observacion = '') => {
     try {
-      const response = await fetch(`http://localhost:3000/api/reservas/${reserva.idReservas}/pago`, {
+      const response = await fetch(`https://lunariasuites.onrender.com/api/reservas/${reserva.idReservas}/pago`, {
         method: 'PATCH',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ accion, observacion: observacion || '' })
@@ -387,7 +387,7 @@ export default function GestionReservas() {
       try { ventana.opener = null; ventana.document.title = 'Cargando comprobante…'; } catch { /* El navegador puede restringir el documento inicial. */ }
     }
     try {
-      const response = await fetch(`http://localhost:3000/api/reservas/${reserva.idReservas}/comprobante`, {
+      const response = await fetch(`https://lunariasuites.onrender.com/api/reservas/${reserva.idReservas}/comprobante`, {
         method: 'GET',
         headers: authHeaders(),
         cache: 'no-store'

@@ -45,8 +45,8 @@ export default function GestionUsuarios() {
     setErrorCarga(null);
     try {
       const [resUsers, resRoles] = await Promise.all([
-        fetch('http://localhost:3000/api/usuarios', { headers: authHeaders() }),
-        fetch('http://localhost:3000/api/opciones-roles', { headers: authHeaders() })
+        fetch('https://lunariasuites.onrender.com/api/usuarios', { headers: authHeaders() }),
+        fetch('https://lunariasuites.onrender.com/api/opciones-roles', { headers: authHeaders() })
       ]);
 
       if (!resUsers.ok) throw new Error(`Error ${resUsers.status} al obtener usuarios`);
@@ -140,7 +140,7 @@ export default function GestionUsuarios() {
   const handleGuardarNuevo = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:3000/api/usuarios', {
+      const res = await fetch('https://lunariasuites.onrender.com/api/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(nuevoUsuario)
@@ -163,7 +163,7 @@ export default function GestionUsuarios() {
   const handleGuardarEdicion = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://localhost:3000/api/usuarios/${usuarioEditando.idUsuarios}`, {
+      const res = await fetch(`https://lunariasuites.onrender.com/api/usuarios/${usuarioEditando.idUsuarios}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(usuarioEditando)
@@ -184,7 +184,7 @@ export default function GestionUsuarios() {
 
   const ejecutarEliminacion = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/api/usuarios/${confirmarEliminarId}`, { method: 'DELETE', headers: authHeaders() });
+      const res = await fetch(`https://lunariasuites.onrender.com/api/usuarios/${confirmarEliminarId}`, { method: 'DELETE', headers: authHeaders() });
 
       if (res.ok) {
         setConfirmarEliminarId(null);
