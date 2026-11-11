@@ -1,0 +1,163 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap');
+.lunaria-site{--luna-ink:#273c35;--luna-green:#405b4e;--luna-sage:#aab8a4;--luna-cream:#f7f4ec;--luna-gold:#c7a66b;--luna-muted:#6f7971;background:#fbfaf6;color:var(--luna-ink);font-family:'DM Sans',sans-serif;min-height:100vh}.lunaria-site *{box-sizing:border-box}.lunaria-site a{color:inherit;text-decoration:none}.lunaria-nav{height:88px;padding:0 clamp(22px,7vw,110px);display:flex;align-items:center;justify-content:space-between;background:rgba(251,250,246,.97);position:sticky;top:0;z-index:1000;box-shadow:0 4px 18px rgba(35,48,40,.08);backdrop-filter:blur(14px)}.lunaria-brand{display:flex;align-items:center;gap:11px}.lunaria-brand img{width:44px;height:44px;object-fit:cover;border-radius:50%}.lunaria-brand span{display:flex;flex-direction:column;gap:3px}.lunaria-brand strong{font-family:'Playfair Display',serif;font-size:22px;letter-spacing:4px;font-weight:600}.lunaria-brand small{font-size:9px;letter-spacing:3px;color:var(--luna-muted)}.lunaria-links{display:flex;align-items:center;gap:32px;font-size:13px}.lunaria-links>a:not(.lunaria-nav-cta):hover,.lunaria-admin-link:hover{color:#a17d42}.lunaria-nav-cta{display:flex;align-items:center;gap:10px;background:var(--luna-green);color:white!important;padding:14px 19px;border-radius:2px}.lunaria-menu-toggle{display:none;border:0;background:none;color:var(--luna-ink)}.lunaria-hero{height:min(690px,76vw);min-height:500px;position:relative;overflow:hidden;background:#667b6d}.lunaria-hero-image,.lunaria-hero-shade{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.lunaria-hero-image{object-position:center 55%}.lunaria-hero-shade{background:linear-gradient(90deg,rgba(22,39,31,.78),rgba(22,39,31,.35) 53%,rgba(22,39,31,.04))}.lunaria-hero-copy{position:absolute;left:clamp(26px,12vw,180px);top:50%;transform:translateY(-48%);max-width:590px;color:#fff}.lunaria-eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:10px;font-weight:700;letter-spacing:2.5px;color:#a58a59}.lunaria-hero .lunaria-eyebrow{color:#e7d3a9}.lunaria-hero h1,.lunaria-final-cta h2{font:500 clamp(43px,6vw,76px)/1.12 'Playfair Display',serif;letter-spacing:-1.2px;margin:23px 0}.lunaria-hero h1 em,.lunaria-experience h2 em{color:#d9c49a;font-weight:500}.lunaria-hero-copy p{font-size:15px;line-height:1.8;max-width:430px;color:#f0f0e9;margin-bottom:30px}.lunaria-button{display:inline-flex;align-items:center;justify-content:center;gap:15px;border:0;border-radius:2px;background:var(--luna-green);color:white!important;padding:16px 22px;font:600 12px 'DM Sans',sans-serif;cursor:pointer;transition:background .2s,transform .2s}.lunaria-button:hover{background:#2e453a;transform:translateY(-1px)}.lunaria-hero .lunaria-button{background:#f5f0e5;color:#293d33!important}.lunaria-hero-note{position:absolute;bottom:27px;right:clamp(24px,7vw,100px);display:flex;gap:18px;color:#fff;font-size:10px;letter-spacing:1.3px}.lunaria-hero-note span:first-child{color:#e2c58b}.lunaria-intro{text-align:center;padding:96px 22px 87px;background:var(--luna-cream)}.lunaria-intro h2,.lunaria-section-heading h2,.lunaria-booking h2,.lunaria-experience h2{font:500 clamp(32px,4vw,48px)/1.2 'Playfair Display',serif;letter-spacing:-.5px;margin:16px 0}.lunaria-intro>p{max-width:650px;margin:0 auto;color:var(--luna-muted);line-height:1.9;font-size:14px}.lunaria-perks{display:flex;justify-content:center;gap:35px;flex-wrap:wrap;margin-top:30px}.lunaria-perks span{display:flex;align-items:center;gap:8px;font-size:12px}.lunaria-perks svg{width:17px;color:#9c875c}.lunaria-booking{position:relative;display:grid;grid-template-columns:1fr 2fr;gap:25px;align-items:center;padding:48px clamp(22px,8vw,120px);background:#e9eee6}.lunaria-booking h2{font-size:32px;margin:10px 0}.lunaria-booking p{font-size:12px;line-height:1.6;color:var(--luna-muted);max-width:320px}.lunaria-booking-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:12px;align-items:end}.lunaria-booking-form label{display:flex;flex-direction:column;gap:9px;font-size:11px;color:#526158;position:relative}.lunaria-booking-form label>span{display:flex;align-items:center;gap:7px}.lunaria-booking-form input,.lunaria-booking-form select,.lunaria-filter select{width:100%;border:1px solid #d7ddd4;background:#fbfaf6;border-radius:2px;padding:13px 10px;color:var(--luna-ink);font:12px 'DM Sans',sans-serif;min-width:0}.lunaria-booking-form select{appearance:none}.lunaria-select-icon{position:absolute;right:10px;bottom:13px;pointer-events:none}.lunaria-booking-form .lunaria-button{height:43px;padding:0 17px}.lunaria-booking-hint{grid-column:2;color:#68756b;font-size:10px}.lunaria-section{padding:90px clamp(22px,8vw,120px)}.lunaria-section-heading{display:flex;justify-content:space-between;align-items:end;gap:25px;margin-bottom:32px}.lunaria-section-heading h2{margin:13px 0 8px}.lunaria-section-heading p{margin:0;color:var(--luna-muted);font-size:13px;line-height:1.7}.lunaria-filter{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--luna-muted);white-space:nowrap}.lunaria-filter select{width:auto;min-width:150px}.lunaria-room-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}.lunaria-room-card,.lunaria-package-card,.lunaria-service-card{background:white;min-width:0}.lunaria-card-image{height:220px;position:relative;overflow:hidden;background:#e6e8e1}.lunaria-card-image img,.lunaria-package-card>img,.lunaria-service-card>img{width:100%;height:100%;object-fit:cover;transition:transform .45s}.lunaria-room-card:hover .lunaria-card-image img,.lunaria-package-card:hover>img{transform:scale(1.04)}.lunaria-image-tag{position:absolute;bottom:12px;left:12px;display:flex;align-items:center;gap:7px;background:rgba(251,250,246,.94);padding:8px 10px;font-size:10px}.lunaria-card-body{padding:20px 18px}.lunaria-card-body h3,.lunaria-package-content h3,.lunaria-service-card h3{font:600 21px 'Playfair Display',serif;margin:0 0 10px}.lunaria-card-body p,.lunaria-package-content p,.lunaria-service-card p{font-size:12px;line-height:1.75;color:var(--luna-muted);min-height:62px;margin:0 0 19px}.lunaria-card-bottom{border-top:1px solid #eceee8;padding-top:15px;display:flex;justify-content:space-between;align-items:center;gap:7px}.lunaria-card-bottom>span{white-space:nowrap}.lunaria-card-bottom strong{font-size:13px}.lunaria-card-bottom small{font-size:10px;color:var(--luna-muted)}.lunaria-card-bottom a,.lunaria-package-content>div a{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#7f714f;white-space:nowrap}.lunaria-experience{display:grid;grid-template-columns:1fr 1fr;min-height:440px;background:#344d40;color:#fff}.lunaria-experience-copy{padding:70px clamp(25px,9vw,130px);align-self:center}.lunaria-experience h2{font-size:clamp(38px,4vw,54px)}.lunaria-experience-copy p{max-width:380px;color:#d6ded5;line-height:1.9;font-size:13px;margin-bottom:25px}.lunaria-text-link{display:inline-flex;align-items:center;gap:10px;color:#e0c99d;font-size:12px}.lunaria-experience-image{min-height:390px;overflow:hidden}.lunaria-experience-image img{width:100%;height:100%;object-fit:cover}.lunaria-packages{background:#f4f2eb}.lunaria-package-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}.lunaria-package-card{overflow:hidden}.lunaria-package-card>img{height:200px;display:block}.lunaria-package-content{padding:19px}.lunaria-package-content>span{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#a58a59}.lunaria-package-content h3{margin-top:9px}.lunaria-package-content p{min-height:64px}.lunaria-package-content>div{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #eceee8;padding-top:14px;gap:8px}.lunaria-package-content>div strong{font-size:12px}.lunaria-services{background:#fbfaf6}.lunaria-service-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.lunaria-service-card{display:flex;min-height:160px;border:1px solid #eeeee8}.lunaria-service-card>img{width:42%;min-height:160px;max-height:190px;flex-shrink:0}.lunaria-service-card>div{padding:18px 15px;align-self:center}.lunaria-service-card h3{font-size:18px}.lunaria-service-card p{min-height:0;margin-bottom:9px;font-size:11px}.lunaria-service-price{font-size:11px;font-weight:700;color:#7c6d49}.lunaria-final-cta{padding:83px 22px;text-align:center;background:#e9eee6;display:flex;flex-direction:column;align-items:center}.lunaria-final-cta>svg{color:#9d8a61;margin-bottom:18px}.lunaria-final-cta h2{font-size:clamp(37px,4.5vw,55px);margin:15px 0 26px}.lunaria-footer{padding:35px 22px;display:flex;flex-direction:column;align-items:center;gap:13px;background:#273d33;color:#fff;text-align:center}.lunaria-footer .lunaria-brand strong{font-size:20px}.lunaria-footer .lunaria-brand small{color:#c3cec4}.lunaria-footer p{font:italic 16px 'Playfair Display',serif;color:#d8dfd8;margin:3px}.lunaria-footer>span{font-size:10px;color:#c0c9c1}.lunaria-admin-link{font-size:10px;color:#d9c49a;margin-top:6px}.lunaria-users-symbol{font-size:18px;line-height:12px}
+@media(max-width:1100px){.lunaria-room-grid,.lunaria-package-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lunaria-service-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lunaria-booking{grid-template-columns:1fr}.lunaria-booking-form{grid-template-columns:repeat(3,minmax(0,1fr)) auto}.lunaria-booking-hint{grid-column:1}.lunaria-card-image{height:260px}}
+@media(max-width:700px){.lunaria-nav{height:72px;padding:0 20px}.lunaria-brand img{width:36px;height:36px}.lunaria-brand strong{font-size:18px}.lunaria-menu-toggle{display:block;cursor:pointer}.lunaria-links{display:none;position:absolute;top:72px;left:0;right:0;padding:18px 22px 24px;background:#fbfaf6;box-shadow:0 10px 18px #20382c12;align-items:stretch;flex-direction:column;gap:20px}.lunaria-links.open{display:flex}.lunaria-nav-cta{justify-content:center}.lunaria-hero{min-height:550px;height:75vh;max-height:720px}.lunaria-hero-image{object-position:58% center}.lunaria-hero-shade{background:linear-gradient(90deg,rgba(22,39,31,.78),rgba(22,39,31,.34))}.lunaria-hero-copy{left:24px;right:24px;max-width:490px}.lunaria-hero h1{font-size:48px}.lunaria-hero-copy p{font-size:13px}.lunaria-hero-note{right:22px;font-size:9px}.lunaria-intro{padding:68px 23px}.lunaria-intro h2{font-size:34px}.lunaria-intro>p{font-size:13px}.lunaria-perks{align-items:flex-start;flex-direction:column;gap:14px;width:max-content;margin:26px auto 0}.lunaria-booking{padding:42px 22px}.lunaria-booking-form{grid-template-columns:1fr 1fr}.lunaria-booking-form .lunaria-button{grid-column:span 2}.lunaria-booking-hint{grid-column:1/-1;line-height:1.5}.lunaria-section{padding:62px 20px}.lunaria-section-heading{align-items:flex-start;flex-direction:column}.lunaria-section-heading h2{font-size:34px}.lunaria-filter{width:100%;justify-content:space-between}.lunaria-filter select{flex:1;max-width:220px}.lunaria-room-grid,.lunaria-package-grid{grid-template-columns:1fr;gap:18px}.lunaria-card-image{height:260px}.lunaria-card-body p{min-height:0}.lunaria-experience{grid-template-columns:1fr}.lunaria-experience-copy{padding:60px 25px}.lunaria-experience-image{min-height:270px;height:300px;grid-row:1}.lunaria-package-card>img{height:230px}.lunaria-package-content p{min-height:0}.lunaria-service-grid{grid-template-columns:1fr}.lunaria-service-card{min-height:145px}.lunaria-service-card>img{min-height:145px;width:38%}.lunaria-service-card>div{padding:14px 12px}.lunaria-service-card h3{font-size:17px}.lunaria-final-cta{padding:66px 20px}.lunaria-final-cta h2{font-size:42px}}
+@media(prefers-reduced-motion:reduce){.lunaria-site *{scroll-behavior:auto!important;transition:none!important}}
+
+.lunaria-login-link,.lunaria-register-link{border:1px solid #d8ddcf;background:transparent;color:#405b4e;padding:12px 15px;cursor:pointer;font:600 12px 'DM Sans',sans-serif}.lunaria-register-link{background:#c7a66b;border-color:#c7a66b;color:#fff}.lunaria-admin-link{border:0;background:transparent;font:inherit;cursor:pointer}
+@media(max-width:900px){.lunaria-login-link,.lunaria-register-link{width:100%;justify-content:center;padding:13px}}
+
+
+/* Adaptación adicional para móviles, escritorio amplio y televisores. */
+.lunaria-site { width: 100%; max-width: 100%; overflow-x: clip; }
+.lunaria-site img { max-width: 100%; }
+.lunaria-service-card { min-width: 0; overflow: hidden; }
+.lunaria-service-card > img { display: block; object-fit: cover; object-position: center; min-width: 0; }
+.lunaria-service-card > div { min-width: 0; overflow-wrap: anywhere; }
+.lunaria-service-card h3, .lunaria-service-card p { overflow-wrap: anywhere; }
+.lunaria-room-grid, .lunaria-package-grid, .lunaria-service-grid { align-items: stretch; }
+@media (max-width: 480px) {
+  .lunaria-service-card { display: grid; grid-template-columns: minmax(112px, 38%) minmax(0, 1fr); min-height: 138px; }
+  .lunaria-service-card > img { width: 100%; height: 100%; min-height: 138px; max-height: none; }
+  .lunaria-service-card > div { padding: 13px 12px; }
+  .lunaria-service-card h3 { font-size: clamp(15px, 4vw, 17px); line-height: 1.25; }
+  .lunaria-service-card p { font-size: 11px; line-height: 1.55; }
+  .lunaria-service-price { font-size: 11px; }
+  .lunaria-booking-form { grid-template-columns: minmax(0, 1fr); }
+  .lunaria-booking-form .lunaria-button { grid-column: auto; }
+  .lunaria-booking-form label { min-width: 0; }
+  .lunaria-hero h1 { font-size: clamp(36px, 10vw, 48px); }
+}
+@media (min-width: 1600px) {
+  .lunaria-nav { padding-left: clamp(32px, 6vw, 120px); padding-right: clamp(32px, 6vw, 120px); }
+  .lunaria-section { padding-left: clamp(36px, 7vw, 150px); padding-right: clamp(36px, 7vw, 150px); }
+  .lunaria-room-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lunaria-package-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .lunaria-service-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(18px, 1.5vw, 30px); }
+  .lunaria-service-card { min-height: clamp(180px, 12vw, 240px); }
+  .lunaria-service-card > img { min-height: inherit; max-height: 260px; }
+  .lunaria-service-card > div { padding: clamp(18px, 1.5vw, 30px); }
+  .lunaria-service-card h3 { font-size: clamp(18px, 1.25vw, 25px); }
+  .lunaria-service-card p { font-size: clamp(12px, .8vw, 16px); line-height: 1.7; }
+}
+/* TVs 4K y pantallas de sala: limitar el ancho de lectura y aumentar el confort visual. */
+@media (min-width: 2200px) {
+  .lunaria-nav, .lunaria-intro, .lunaria-booking, .lunaria-section { max-width: 2200px; margin-left: auto; margin-right: auto; }
+  .lunaria-hero { min-height: min(78vh, 1100px); }
+  .lunaria-hero h1 { font-size: clamp(76px, 4.2vw, 112px); }
+  .lunaria-hero-copy p { font-size: clamp(18px, 1.1vw, 26px); }
+  .lunaria-section-heading h2, .lunaria-intro h2 { font-size: clamp(54px, 3vw, 76px); }
+  .lunaria-section-heading p, .lunaria-intro > p { font-size: clamp(16px, .9vw, 22px); }
+  .lunaria-service-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (hover: none) and (pointer: coarse) {
+  .lunaria-links a, .lunaria-links button, .lunaria-button { min-height: 44px; }
+}
+
+/* Catálogo sin imágenes de respaldo: el contenido ocupa todo el espacio si imagen está vacía. */
+.lunaria-service-card { display:grid; grid-template-columns:minmax(0, 38%) minmax(0, 1fr); overflow:hidden; }
+.lunaria-service-card.no-image { grid-template-columns:minmax(0, 1fr); }
+.lunaria-service-photo { min-width:0; min-height:180px; background:transparent; }
+.lunaria-service-photo img { display:block; width:100%; height:100%; min-height:180px; object-fit:cover; }
+.lunaria-service-info { min-width:0; padding:22px; overflow-wrap:anywhere; }
+.lunaria-service-card.no-image .lunaria-service-info { grid-column:1/-1; }
+.lunaria-package-image { height:220px; background:transparent; }
+.lunaria-package-image img { display:block; width:100%; height:100%; object-fit:cover; }
+.lunaria-card-image.no-image { background:transparent; }
+.lunaria-booking-result { grid-column:1/-1; margin:12px 0 0; padding:12px 15px; border-radius:6px; font-size:13px; line-height:1.5; }
+.lunaria-booking-result.error { background:#fff0ed; color:#9d3026; }
+.lunaria-booking-result.success { background:#eaf4e9; color:#2c633e; }
+.lunaria-availability-results { grid-column:1/-1; width:100%; margin-top:24px; }
+.lunaria-availability-results>h3,.lunaria-reservation-options>h3 { font:500 clamp(22px,2.5vw,30px)/1.2 'Playfair Display',serif; margin:14px 0; }
+.lunaria-availability-card { display:grid; grid-template-columns:150px minmax(0,1fr) auto; gap:18px; align-items:center; background:#fbfaf6; border:1px solid #d9dfd5; padding:14px; margin:12px 0; }
+.lunaria-availability-card.selected { border:2px solid #405b4e; background:#f2f5ef; }
+.lunaria-availability-card>img { width:150px; height:120px; object-fit:cover; }
+.lunaria-availability-card h4 { margin:0 0 7px; font:600 19px 'Playfair Display',serif; }
+.lunaria-availability-card p { margin:0 0 8px; color:#6f7971; font-size:13px; line-height:1.5; }
+.lunaria-availability-card small { display:block; margin-top:5px; color:#6f7971; }
+.lunaria-availability-card>button { border:1px solid #405b4e; background:#405b4e; color:#fff; padding:12px 15px; cursor:pointer; }
+.lunaria-reservation-options { margin-top:24px; padding:22px; background:#f0f2eb; border:1px solid #dce1d7; }
+.lunaria-reservation-options h3 small { font:400 13px 'DM Sans',sans-serif; color:#6f7971; }
+.lunaria-option-label { display:flex; flex-direction:column; gap:8px; max-width:520px; color:#526158; font-size:13px; }
+.lunaria-option-label select { width:100%; padding:12px; border:1px solid #d7ddd4; background:#fff; }
+.lunaria-service-options { display:flex; flex-wrap:wrap; gap:10px 20px; margin:20px 0; border:1px solid #d7ddd4; padding:15px; }
+.lunaria-service-options legend { padding:0 6px; font-size:13px; font-weight:600; }
+.lunaria-service-options label { display:flex; align-items:center; gap:8px; font-size:13px; }
+.lunaria-service-options input { accent-color:#405b4e; }
+.lunaria-confirm-booking { margin-top:8px; }
+.lunaria-empty-catalog { color:#6f7971; padding:18px 0; }
+.luna-spin { animation:lunaSpin 1s linear infinite; }
+@keyframes lunaSpin { to { transform:rotate(360deg); } }
+@media(max-width:700px) {
+ .lunaria-service-card { grid-template-columns:minmax(105px, 38%) minmax(0,1fr); }
+ .lunaria-service-card.no-image { grid-template-columns:minmax(0,1fr); }
+ .lunaria-service-photo,.lunaria-service-photo img { min-height:140px; }
+ .lunaria-service-info { padding:14px 12px; }
+ .lunaria-availability-card { grid-template-columns:minmax(0,1fr); }
+ .lunaria-availability-card>img { width:100%; height:190px; }
+ .lunaria-availability-card>button { width:100%; }
+ .lunaria-reservation-options { padding:15px; }
+}
+.lunaria-room-meta { display:flex; align-items:center; gap:8px; padding:12px 18px; background:#f1f2ec; color:#58675c; font-size:12px; }
+.lunaria-availability-card.no-image { grid-template-columns:minmax(0,1fr) auto; }
+@media(max-width:700px) { .lunaria-availability-card.no-image { grid-template-columns:minmax(0,1fr); } }
+
+.lunaria-payment-options{margin:18px 0;padding:16px;border:1px solid rgba(255,255,255,.42);border-radius:14px;background:rgba(255,255,255,.18);backdrop-filter:blur(12px);color:#292333}
+.lunaria-payment-options h4{margin:0 0 12px;color:#292333}.lunaria-payment-times{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.lunaria-payment-times label,.lunaria-payment-options .lunaria-option-label{display:flex;flex-direction:column;gap:6px;color:#302a38;font-weight:600}
+.lunaria-payment-options input,.lunaria-payment-options select{width:100%;padding:10px;border:1px solid rgba(70,55,80,.25);border-radius:9px;background:rgba(255,255,255,.82);color:#25202c}
+@media(max-width:600px){.lunaria-payment-times{grid-template-columns:1fr}}
+
+.lunaria-payment-options{margin:18px 0;padding:16px;border:1px solid rgba(255,255,255,.42);border-radius:14px;background:rgba(255,255,255,.18);backdrop-filter:blur(12px);color:#292333}
+.lunaria-payment-options h4{margin:0 0 12px;color:#292333}.lunaria-payment-times{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.lunaria-payment-times label,.lunaria-payment-options .lunaria-option-label{display:flex;flex-direction:column;gap:6px;color:#302a38;font-weight:600}
+.lunaria-payment-options input,.lunaria-payment-options select{width:100%;padding:10px;border:1px solid rgba(70,55,80,.25);border-radius:9px;background:rgba(255,255,255,.82);color:#25202c}
+@media(max-width:600px){.lunaria-payment-times{grid-template-columns:1fr}}
+
+.lunaria-comments-panel{background:#fff;border:1px solid #e9e1d7;border-radius:16px;padding:20px;max-width:900px}.lunaria-comments-panel>header{display:flex;align-items:center;justify-content:space-between;gap:12px}.lunaria-comments-panel>header>div{display:flex;align-items:center;gap:10px}.lunaria-comments-panel h2{font-size:20px;margin:0}.lunaria-comments-panel button{display:inline-flex;align-items:center;gap:7px;border:0;border-radius:9px;padding:10px 14px;background:#76563c;color:white;cursor:pointer}.lunaria-comments-client{display:grid;gap:7px;margin:16px 0}.lunaria-comments-client select,.lunaria-comments-panel textarea{width:100%;padding:11px;border:1px solid #ddd;border-radius:9px;font:inherit}.lunaria-comments-list{display:grid;gap:10px;max-height:420px;overflow:auto;padding:12px 0}.lunaria-comments-list article{background:#f7f4f0;border-radius:12px;padding:12px 14px;max-width:85%}.lunaria-comments-list article.mine{margin-left:auto;background:#eee5da}.lunaria-comments-list article>div{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.lunaria-comments-list small{color:#81766b;font-size:11px}.lunaria-comments-list p{margin:8px 0 0;white-space:pre-wrap}.lunaria-comments-panel form{display:grid;gap:10px}.lunaria-comments-panel form button{justify-self:end}.lunaria-comments-empty,.lunaria-comments-error{color:#786d62;font-size:14px}
+
+.lunaria-about-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:26px auto;max-width:1000px;text-align:left}.lunaria-about-grid article{background:rgba(255,255,255,.7);border:1px solid #e9e1d7;border-radius:13px;padding:18px}.lunaria-about-grid h3{margin:0 0 8px;color:#76563c}.lunaria-about-grid p{margin:0;font-size:14px;line-height:1.65}
+
+
+/* Ajustes responsive de la portada: el texto conserva espacio en pantallas pequeñas. */
+.lunaria-hero-copy{width:min(590px,calc(100% - 64px));}
+@media(max-width:900px){
+  .lunaria-hero{height:clamp(520px,78vh,680px);min-height:520px;}
+  .lunaria-hero-copy{left:clamp(24px,7vw,64px);right:clamp(24px,7vw,64px);width:auto;max-width:620px;}
+  .lunaria-hero-image{object-position:58% center;}
+}
+@media(max-width:600px){
+  .lunaria-hero{height:620px;min-height:620px;}
+  .lunaria-hero-image{object-position:62% center;}
+  .lunaria-hero-shade{background:linear-gradient(90deg,rgba(22,39,31,.78),rgba(22,39,31,.48)),linear-gradient(0deg,rgba(22,39,31,.24),transparent);}
+  .lunaria-hero-copy{left:22px;right:22px;top:47%;width:auto;max-width:none;}
+  .lunaria-hero h1{font-size:clamp(38px,10vw,54px);line-height:1.08;overflow-wrap:normal;}
+  .lunaria-hero-copy p{max-width:34ch;font-size:14px;line-height:1.6;}
+  .lunaria-hero-note{right:20px;bottom:18px;}
+}
+@media(max-width:380px){
+  .lunaria-hero{height:590px;min-height:590px;}
+  .lunaria-hero-copy{left:18px;right:18px;}
+  .lunaria-hero h1{font-size:37px;letter-spacing:-.7px;}
+}
+
+/* Pago de tarjeta completamente simulado: no se guardan datos de tarjeta. */
+.lunaria-card-simulation{display:grid;gap:11px;margin:14px 0;padding:16px;border:1px solid rgba(92,72,112,.2);border-radius:13px;background:rgba(255,255,255,.78);}
+.lunaria-card-simulation>strong{color:#55406b;}
+.lunaria-card-simulation>p{margin:0;color:#62586b;font-size:12px;line-height:1.5;}
+.lunaria-card-simulation .lunaria-payment-times{margin:0;}
+.lunaria-card-simulation input{background:#fff!important;}
+.lunaria-change-password{max-width:1000px;margin:22px auto;padding:24px;background:#fff;border:1px solid #ece6f0;border-radius:16px;box-shadow:0 8px 26px rgba(44,30,60,.06);}
+.lunaria-change-password h2{margin:0 0 7px;color:#4f3b61;}
+.lunaria-change-password>p{color:#756b7d;margin:0 0 18px;}
+.lunaria-change-password form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;align-items:end;}
+.lunaria-change-password label{display:grid;gap:7px;color:#51475a;font-size:13px;font-weight:600;}
+.lunaria-change-password input{width:100%;box-sizing:border-box;padding:11px;border:1px solid #ddd4e5;border-radius:9px;font:inherit;}
+.lunaria-change-password button{grid-column:1/-1;justify-self:start;border:0;border-radius:9px;padding:11px 17px;background:#73558b;color:#fff;font-weight:700;cursor:pointer;}
+.lunaria-change-password button:disabled{opacity:.6;cursor:wait;}
+.lunaria-change-password .error{color:#b42318;grid-column:1/-1;margin:0;}
+.lunaria-change-password .success{color:#247447;grid-column:1/-1;margin:0;}
+@media(max-width:720px){.lunaria-change-password form{grid-template-columns:1fr;}.lunaria-change-password button{grid-column:auto;}}
+
+.lunaria-payment-options .lunaria-option-label select{display:block;width:100%;margin-top:8px;padding:12px 14px;border:1px solid #d9d5cd;border-radius:9px;background:#fff;color:#34443b;font:inherit;}
+.lunaria-payment-options .lunaria-option-label small{display:block;margin-top:7px;color:#77716b;line-height:1.45;}

@@ -1,0 +1,61 @@
+.lunaria-admin-shell{min-height:100vh;background:#f4f5f2}.lunaria-account button{border:0;border-radius:6px;padding:10px 14px;background:#405b4e;color:#fff;cursor:pointer}.lunaria-account{min-height:100vh;background:#f7f4ec;color:#273c35;padding:32px;font-family:Arial,sans-serif}.lunaria-account header{display:flex;align-items:center;gap:18px;flex-wrap:wrap}.lunaria-account header img{width:64px;height:64px;object-fit:contain}.lunaria-account header div{flex:1}.lunaria-account h1,.lunaria-account h2{font-family:Georgia,serif}.lunaria-account section{max-width:760px;margin:60px auto;background:#fff;padding:32px;border-radius:14px;line-height:1.7}.lunaria-account p{line-height:1.7}@media(max-width:600px){.lunaria-account{padding:18px}.lunaria-account section{margin:30px auto;padding:22px}}
+/* Perfil de sesión compacto en la navegación pública. */
+.lunaria-session-menu{position:relative;display:inline-flex;align-items:center;margin-left:4px}
+.lunaria-session-icon{width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #d9dfd4;border-radius:50%;background:#405b4e;color:#fff;cursor:pointer;box-shadow:0 2px 8px #20382c16}
+.lunaria-session-icon:hover{background:#2f473b}
+.lunaria-session-dropdown{position:absolute;z-index:200;right:0;top:calc(100% + 10px);width:min(260px, calc(100vw - 32px));padding:15px;background:#fffdf8;border:1px solid #e8e2d7;border-radius:12px;box-shadow:0 12px 35px #1d322522;display:flex;flex-direction:column;align-items:stretch;gap:9px;color:#273c35}
+.lunaria-session-dropdown strong{font-size:14px;overflow-wrap:anywhere}
+.lunaria-session-dropdown span{font-size:12px;color:#8b7145;padding-bottom:8px;border-bottom:1px solid #ece7dd}
+.lunaria-session-dropdown button{display:flex;align-items:center;gap:8px;padding:10px;border:0;border-radius:7px;background:#f2f3ed;color:#344d40;text-align:left;cursor:pointer;font:500 12px 'DM Sans',sans-serif}
+.lunaria-session-dropdown button:hover{background:#e6ebdf}
+.lunaria-session-dropdown .lunaria-session-logout{background:#fff0ed;color:#a33d30}
+.lunaria-session-dropdown .lunaria-session-logout:hover{background:#ffe3de}
+@media(max-width:700px){.lunaria-session-menu{align-self:center}.lunaria-session-dropdown{right:0}}
+
+
+/* Alineación uniforme de estados en tablas y listados administrativos. */
+.lunaria-admin-shell td:has(.status-badge),
+.lunaria-admin-shell td:has(.estado-badge),
+.lunaria-admin-shell td:has([class*="status"]),
+.lunaria-admin-shell td:has([class*="estado"]){text-align:center!important;vertical-align:middle!important;}
+.lunaria-admin-shell .status-badge,
+.lunaria-admin-shell .estado-badge,
+.lunaria-admin-shell [class*="status-badge"],
+.lunaria-admin-shell [class*="estado-badge"]{display:inline-flex;align-items:center;justify-content:center;text-align:center;min-width:104px;box-sizing:border-box;white-space:nowrap;margin-inline:auto;}
+.lunaria-admin-shell .roles-table-container .role-row [class*="status"],
+.lunaria-admin-shell .roles-table-container .role-row [class*="estado"]{justify-self:center;text-align:center;}
+.lunaria-admin-shell table td{vertical-align:middle;}
+
+.lunaria-admin-shell .role-row>span:has(.status-badge),
+.lunaria-admin-shell .role-row>span:has([style*="border-radius"]){display:flex;align-items:center;justify-content:center;text-align:center;}
+.lunaria-admin-shell .role-row>span:has(.status-badge)>small{display:block;text-align:center;}
+
+/* Acciones de revisión y confirmación de pagos en Gestión de Reservas */
+.btn-payment-proof,.btn-payment-approve,.btn-payment-reject{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:8px;padding:7px 10px;margin-top:7px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn-payment-proof{background:#eee8ff;color:#5c438f}
+.btn-payment-approve{background:#e2f5e9;color:#216b3b}
+.btn-payment-reject{background:#fde8e8;color:#9d3030}
+.payment-actions{display:flex;flex-wrap:wrap;gap:6px}
+
+/* Prioriza la alineación de cada celda con su encabezado en cualquier módulo. */
+.lunaria-admin-shell .roles-table-container .role-row > span:has(.status-badge),
+.lunaria-admin-shell .roles-table-container .role-row > span:has(.estado-badge){display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;}
+.lunaria-admin-shell .roles-table-container .role-row .status-badge,
+.lunaria-admin-shell .roles-table-container .role-row .estado-badge{align-self:flex-start;margin:0;}
+.lunaria-admin-shell .roles-table-container .table-header > *,
+.lunaria-admin-shell .roles-table-container .role-row > *{justify-self:stretch;min-width:0;}
+
+/* Tablas: correo y teléfono conservan separación y no invaden columnas vecinas. */
+.lunaria-admin-shell .roles-table-container{overflow-x:auto;}
+.lunaria-admin-shell .roles-table-container .table-header,
+.lunaria-admin-shell .roles-table-container .role-row{column-gap:14px!important;}
+.lunaria-admin-shell .roles-table-container .role-row>span{min-width:0;}
+.lunaria-account-management{max-width:760px;margin:30px auto;background:#fff;padding:30px;border:1px solid #eadfda;border-radius:14px;line-height:1.7;}
+.lunaria-account-management h2{margin-top:0;}
+.lunaria-account-management label{display:grid;gap:7px;max-width:420px;font-size:13px;font-weight:600;}
+.lunaria-account-management input{padding:12px;border:1px solid #d8d5cc;border-radius:7px;font:inherit;}
+.lunaria-account-danger-actions{display:flex;flex-wrap:wrap;gap:12px;margin:18px 0;}
+.lunaria-account-danger-actions button:first-child{background:#a87838;}
+.lunaria-account-danger-actions button:last-child{background:#a33d30;}
+.lunaria-account-management small{display:block;color:#777;font-size:12px;line-height:1.5;}
+@media(max-width:600px){.lunaria-account-management{margin:24px auto;padding:22px}.lunaria-account-danger-actions{flex-direction:column}.lunaria-account-danger-actions button{width:100%}}

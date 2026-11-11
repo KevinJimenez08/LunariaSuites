@@ -1,0 +1,722 @@
+/* Layout principal */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #fefbe8;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #1a1a1a;
+}
+
+/* Sidebar lateral */
+.sidebar {
+  width: 240px;
+  background-color: #fef8e2;
+  padding: 20px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-right: 1px solid #ebd9b4;
+}
+
+.sidebar-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.sidebar-logo img {
+  width: 60px;
+  height: auto;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 1.05rem;
+  color: #333;
+  transition: all 0.2s ease;
+}
+
+.nav-item:hover {
+  background-color: #f3e0b5;
+}
+
+.nav-item.active {
+  background-color: #e5c38f;
+  font-weight: 600;
+}
+
+.nav-icon {
+  font-size: 1.2rem;
+}
+
+/* Contenido Principal */
+.main-content {
+  flex: 1;
+  padding: 25px 35px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Topbar superior */
+.topbar {
+  background-color: #fef8e2;
+  padding: 15px 25px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.user-avatar {
+  background: #f8ecc2;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Barra de Buscador y Titulo de la Seccion */
+.roles-header-card {
+  background-color: #e5c38f;
+  padding: 12px 25px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.roles-header-card h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background-color: #ebd9b4;
+  padding: 6px 15px;
+  border-radius: 20px;
+  width: 40%;
+  border: 1px solid #c9a96e;
+}
+
+.search-box input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  margin: 0 8px;
+  font-size: 0.95rem;
+}
+
+.btn-add-role {
+  background-color: #fef8e2;
+  border: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #d4a359;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Contenedor de la Tabla de Roles */
+.roles-table-container {
+  background-color: #faeed1;
+  padding: 25px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 80px 1.5fr 2fr 1fr 100px;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: #2c2c2c;
+}
+
+.role-row {
+  display: grid;
+  grid-template-columns: 80px 1.5fr 2fr 1fr 100px;
+  align-items: center;
+  background-color: #e5c38f;
+  padding: 16px 20px;
+  border-radius: 12px;
+  font-size: 1rem;
+}
+
+.row-actions {
+  display: flex;
+  gap: 12px;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.action-icon {
+  transition: transform 0.1s ease;
+}
+
+.action-icon:hover {
+  transform: scale(1.15);
+}
+
+/* Modal de Edición */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #fef8e2;
+  padding: 25px;
+  border-radius: 16px;
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  border: 1px solid #ebd9b4;
+}
+
+.modal-content h3 {
+  margin: 0;
+  color: #1a1a1a;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.modal-field label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.modal-field input, .modal-field select {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #c9a96e;
+  background-color: #fff;
+  outline: none;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.btn-cancelar {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #c9a96e;
+  background: transparent;
+  cursor: pointer;
+}
+
+.btn-guardar {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background-color: #e5c38f;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Contenedor principal de las 4 tarjetas en fila */
+.stats-container {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 15px !important;
+  width: 100% !important;
+  margin-bottom: 20px !important;
+}
+
+/* Cada tarjeta individual */
+.stat-card {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+  background-color: #fdf6e2 !important;
+  border: 1px solid #ebd9b4 !important;
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+  min-width: 0 !important; /* Previene que los textos largos rompan la fila */
+}
+
+/* Caja del ícono a la izquierda */
+.stat-icon {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 10px !important;
+  background-color: #f3e2b8 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+/* Texto y número alineados verticalmente a la derecha del ícono */
+.stat-info {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+}
+
+.stat-label {
+  font-size: 0.85rem !important;
+  color: #444 !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+}
+
+.stat-value {
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
+  color: #1a1a1a !important;
+  margin-top: 2px !important;
+}
+
+/* Efecto visual al presionar y seleccionar una tarjeta */
+.stat-card {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.stat-card.active-filter {
+  border-color: #c9a96e !important;
+  box-shadow: 0 0 0 2px rgba(201, 169, 110, 0.4) !important;
+  background-color: #f7ebc6 !important;
+}
+
+/* Aplicar imagen de fondo a toda la aplicación */
+.dashboard-container {
+  min-height: 100vh;
+  background-image: url('/img/lunaria.jpg'); 
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed; /* Mantiene el fondo fijo al hacer scroll */
+}
+
+/* Transparencias opcionales para que el contenido resalte sobre la imagen */
+.main-content {
+  /* Evita backdrop-filter en el contenedor de contenido: creaba un contexto
+     que hacía que los diálogos fixed se posicionaran respecto al panel y no al viewport. */
+  border-radius: 18px;
+  padding: 20px;
+  margin: 15px;
+}
+
+.sidebar {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+/* Sidebar lateral semitransparente */
+.sidebar {
+  background-color: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(10px) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Encabezados y tarjetas superiores */
+.topbar, 
+.roles-header-card {
+  background-color: rgba(253, 246, 226, 0.5) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(235, 217, 180, 0.4) !important;
+}
+
+/* Tarjetas de métricas (StatCards) */
+.stat-card {
+  background-color: rgba(253, 246, 226, 0.45) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(235, 217, 180, 0.5) !important;
+}
+
+/* Contenedor principal de la tabla */
+.roles-table-container {
+  background-color: rgba(253, 246, 226, 0.45) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(235, 217, 180, 0.5) !important;
+  border-radius: 12px;
+  padding: 15px;
+}
+
+/* Filas individuales de la tabla */
+.role-row {
+  background-color: rgba(226, 192, 141, 0.35) !important;
+  backdrop-filter: blur(5px) !important;
+  border: 1px solid rgba(201, 169, 110, 0.3) !important;
+  transition: background-color 0.2s ease;
+}
+
+.role-row:hover {
+  background-color: rgba(226, 192, 141, 0.55) !important;
+}
+
+/* Barra de búsqueda */
+.search-box {
+  background-color: rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid rgba(200, 200, 200, 0.4) !important;
+}
+
+.search-box input {
+  background: transparent !important;
+}
+
+/* Transición y efecto hover en el menú del Sidebar */
+.nav-item {
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.nav-item:hover {
+  background-color: rgba(226, 192, 141, 0.4);
+}
+
+.nav-item.active {
+  background-color: rgba(201, 169, 110, 0.6) !important;
+  font-weight: 600;
+}
+
+/* Estructura común para los contenedores */
+.table-header, .role-row {
+  display: grid;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 20px;
+}
+
+/* Tabla de Roles (5 columnas) */
+.roles-table .table-header,
+.roles-table .role-row {
+  grid-template-columns: 50px 1.5fr 3fr 1fr 100px;
+}
+
+/* Tabla de Habitaciones ajustada a 8 columnas */
+.habitaciones-table .table-header,
+.habitaciones-table .role-row {
+  grid-template-columns: 40px 55px 1fr 1fr 1fr 1fr 1.8fr 90px !important;
+}
+
+/* Ajuste de imagen para habitaciones */
+.habitaciones-table .role-row img {
+  width: 45px;
+  height: 45px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* Tabla de Servicios (5 columnas: ID, Nombre, Precio, Estado, Acciones) */
+.servicios-table .table-header,
+.servicios-table .role-row {
+  display: grid;
+  grid-template-columns: 60px 2fr 1.5fr 1fr 100px;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 20px;
+}
+
+/* Estilos para el indicador de Estado (Badge) */
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-badge.active {
+  background-color: rgba(46, 204, 113, 0.2);
+  color: #1e8449;
+  border: 1px solid rgba(46, 204, 113, 0.4);
+}
+
+.status-badge.inactive {
+  background-color: rgba(231, 76, 60, 0.2);
+  color: #a93226;
+  border: 1px solid rgba(231, 76, 60, 0.4);
+}
+/* Configuración para la Tabla de Reservas (8 columnas) */
+.reservas-table .table-header,
+.reservas-table .role-row {
+  grid-template-columns: 50px 80px 100px 1.5fr 1fr 1fr 1.5fr 80px !important;
+}
+
+/* Badge de Estado Pendiente */
+.status-badge.pending {
+  background-color: rgba(241, 196, 15, 0.2);
+  color: #b7950b;
+  border: 1px solid rgba(241, 196, 15, 0.4);
+}
+/* Imágenes del módulo de servicios; no altera la paleta del panel administrativo. */
+.servicios-table .table-header, .servicios-table .role-row { grid-template-columns: .45fr .75fr 1.7fr 1fr .8fr .8fr !important; }
+.servicio-admin-imagen img { width: 58px; height: 42px; object-fit: cover; border-radius: 7px; display: block; }
+.servicio-preview { display:block; width:100%; max-width:220px; height:100px; object-fit:cover; border-radius:8px; margin-top:8px; }
+
+.sidebar{position:sticky;top:0;align-self:flex-start;height:100vh;min-height:100vh;overflow-y:auto;flex:0 0 240px;z-index:50}
+.main-content{min-width:0}
+.habitaciones-table{overflow-x:auto;padding:14px}
+.habitaciones-table .table-header,.habitaciones-table .role-row{min-width:900px;grid-template-columns:42px 64px 95px 85px 65px 115px 75px minmax(150px,1fr) 86px;gap:8px;padding:10px 12px;font-size:.86rem}
+.habitaciones-table .role-row img{width:42px;height:42px;object-fit:cover;border-radius:7px}
+.admin-filter-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0;padding:12px 14px;border-radius:12px;background:#fff9e9;border:1px solid #ebd9b4}
+.admin-filter-bar input,.admin-filter-bar select{min-width:220px;flex:1;padding:10px 12px;border:1px solid #c9a96e;border-radius:8px;background:#fff}
+.admin-filter-bar button{padding:10px 14px;border:1px solid #c9a96e;border-radius:8px;background:#f3e0b5;cursor:pointer}
+
+
+/* Tabla de habitaciones: estructura HTML de tabla para mantener cada columna alineada. */
+.habitaciones-table .habitaciones-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+.habitaciones-table .habitaciones-data-table {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: separate;
+  border-spacing: 0 8px;
+  table-layout: fixed;
+  font-size: .88rem;
+}
+.habitaciones-table .habitaciones-data-table th,
+.habitaciones-table .habitaciones-data-table td {
+  padding: 11px 10px;
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+}
+.habitaciones-table .habitaciones-data-table th {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.habitaciones-table .habitaciones-data-table th:nth-child(1),
+.habitaciones-table .habitaciones-data-table td:nth-child(1) { width: 55px; }
+.habitaciones-table .habitaciones-data-table th:nth-child(2),
+.habitaciones-table .habitaciones-data-table td:nth-child(2) { width: 85px; }
+.habitaciones-table .habitaciones-data-table th:nth-child(3),
+.habitaciones-table .habitaciones-data-table td:nth-child(3) { width: 115px; }
+.habitaciones-table .habitaciones-data-table th:nth-child(4),
+.habitaciones-table .habitaciones-data-table td:nth-child(4) { width: 100px; }
+.habitaciones-table .habitaciones-data-table th:nth-child(5),
+.habitaciones-table .habitaciones-data-table td:nth-child(5) { width: 85px; }
+.habitaciones-table .habitaciones-data-table th:nth-child(6),
+.habitaciones-table .habitaciones-data-table td:nth-child(6) { width: 135px; }
+.habitaciones-table .habitaciones-data-table th:nth-child(7),
+.habitaciones-table .habitaciones-data-table td:nth-child(7) { width: 120px; }
+.habitaciones-table .habitaciones-data-table th:nth-child(8),
+.habitaciones-table .habitaciones-data-table td:nth-child(8) { width: 230px; }
+.habitaciones-table .habitaciones-data-table th:nth-child(9),
+.habitaciones-table .habitaciones-data-table td:nth-child(9) { width: 105px; }
+.habitaciones-table .habitaciones-data-table tbody tr {
+  background: rgba(226, 192, 141, .35);
+}
+.habitaciones-table .habitaciones-data-table tbody td:first-child {
+  border-radius: 10px 0 0 10px;
+}
+.habitaciones-table .habitaciones-data-table tbody td:last-child {
+  border-radius: 0 10px 10px 0;
+}
+.habitaciones-table .habitaciones-data-table img,
+.habitacion-sin-imagen {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.habitacion-sin-imagen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
+}
+.habitacion-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  white-space: nowrap;
+}
+.habitaciones-sin-resultados {
+  text-align: center !important;
+  padding: 24px !important;
+}
+.admin-filter-bar input { min-width: 0; }
+
+
+/* Alineación uniforme de estados en tablas y listados administrativos. */
+.lunaria-admin-shell td:has(.status-badge),
+.lunaria-admin-shell td:has(.estado-badge),
+.lunaria-admin-shell td:has([class*="status"]),
+.lunaria-admin-shell td:has([class*="estado"]){text-align:center!important;vertical-align:middle!important;}
+.lunaria-admin-shell .status-badge,
+.lunaria-admin-shell .estado-badge,
+.lunaria-admin-shell [class*="status-badge"],
+.lunaria-admin-shell [class*="estado-badge"]{display:inline-flex;align-items:center;justify-content:center;text-align:center;min-width:104px;box-sizing:border-box;white-space:nowrap;margin-inline:auto;}
+.lunaria-admin-shell .roles-table-container .role-row [class*="status"],
+.lunaria-admin-shell .roles-table-container .role-row [class*="estado"]{justify-self:center;text-align:center;}
+.lunaria-admin-shell table td{vertical-align:middle;}
+
+.lunaria-admin-shell .role-row>span:has(.status-badge),
+.lunaria-admin-shell .role-row>span:has([style*="border-radius"]){display:flex;align-items:center;justify-content:center;text-align:center;}
+.lunaria-admin-shell .role-row>span:has(.status-badge)>small{display:block;text-align:center;}
+
+/* Alineación consistente: cada celda queda debajo de su encabezado en todos los módulos. */
+.lunaria-admin-shell .roles-table-container .table-header,
+.lunaria-admin-shell .roles-table-container .role-row{
+  align-items:center;
+}
+.lunaria-admin-shell .roles-table-container .table-header > *,
+.lunaria-admin-shell .roles-table-container .role-row > *{
+  min-width:0;
+  justify-self:stretch;
+  box-sizing:border-box;
+  text-align:left;
+}
+.lunaria-admin-shell .roles-table-container .role-row > span:has(.status-badge),
+.lunaria-admin-shell .roles-table-container .role-row > span:has(.estado-badge){
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  text-align:left;
+}
+.lunaria-admin-shell .roles-table-container .role-row .status-badge,
+.lunaria-admin-shell .roles-table-container .role-row .estado-badge{
+  margin:0;
+  align-self:flex-start;
+}
+.lunaria-admin-shell .reservas-table .table-header,
+.lunaria-admin-shell .reservas-table .role-row{
+  grid-template-columns: minmax(115px,.8fr) minmax(145px,1.05fr) minmax(190px,1.45fr) minmax(175px,1.2fr) minmax(145px,1fr) minmax(105px,.8fr) minmax(190px,1.35fr) minmax(90px,.65fr) minmax(180px,1.2fr) !important;
+  gap:12px;
+}
+.lunaria-admin-shell .reservas-table .role-row{align-items:start;}
+.lunaria-admin-shell .reservas-table .payment-actions-cell{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0;}
+.lunaria-admin-shell .reservas-table .payment-actions-cell button{max-width:100%;white-space:normal;text-align:left;}
+.lunaria-admin-shell .reservas-table .role-row > span:has(.status-badge){align-items:flex-start;}
+@media(max-width:1100px){
+ .lunaria-admin-shell .reservas-table{overflow-x:auto;}
+ .lunaria-admin-shell .reservas-table .table-header,
+ .lunaria-admin-shell .reservas-table .role-row{min-width:1450px;}
+}
+
+
+/* Gestión de reservas: tabla ancha con desplazamiento horizontal controlado. */
+.lunaria-admin-shell .reservas-table{
+  display:block;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  overflow-x:auto;
+  overflow-y:hidden;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+  scrollbar-gutter:stable;
+}
+.lunaria-admin-shell .reservas-table .table-header,
+.lunaria-admin-shell .reservas-table .role-row{
+  width:100%;
+  min-width:1800px;
+  box-sizing:border-box;
+  grid-template-columns: minmax(125px,.8fr) minmax(165px,1.05fr) minmax(220px,1.45fr) minmax(190px,1.2fr) minmax(155px,1fr) minmax(120px,.8fr) minmax(210px,1.35fr) minmax(105px,.65fr) minmax(220px,1.2fr) !important;
+  column-gap:18px !important;
+}
+.lunaria-admin-shell .reservas-table .table-header{
+  position:sticky;
+  left:0;
+  z-index:2;
+  background:#f7f3e9;
+}
+.lunaria-admin-shell .reservas-table .role-row > *{min-width:0;overflow-wrap:anywhere;}
+.lunaria-admin-shell .reservas-table .payment-actions-cell{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:8px;
+  padding-right:8px;
+}
+.lunaria-admin-shell .reservas-table .payment-actions-cell button{
+  width:100%;
+  max-width:200px;
+  min-height:34px;
+  justify-content:flex-start;
+  white-space:normal;
+  line-height:1.35;
+}
+.lunaria-admin-shell .reservas-table .payment-actions-cell small{white-space:normal;}
+.lunaria-admin-shell .reservas-table::-webkit-scrollbar{height:10px;}
+.lunaria-admin-shell .reservas-table::-webkit-scrollbar-track{background:#eee8dc;border-radius:10px;}
+.lunaria-admin-shell .reservas-table::-webkit-scrollbar-thumb{background:#b9a58a;border:2px solid #eee8dc;border-radius:10px;}
+.lunaria-admin-shell .reservas-table::-webkit-scrollbar-thumb:hover{background:#947d5e;}
+
+
+/* Los avisos y confirmaciones deben centrarse en la ventana, incluso al estar
+   desplazado dentro de una sección del panel. */
+.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  z-index: 100000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow-y: auto;
+  padding: 18px;
+  box-sizing: border-box;
+}
+.modal-content {
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+}
