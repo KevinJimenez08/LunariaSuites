@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+.luna-auth-page{min-height:100vh;padding:28px 18px 50px;background:linear-gradient(135deg,#e9eee5,#f8f4e9 55%,#e7dfcf);color:#273c35;font-family:'DM Sans',sans-serif}
+.luna-auth-back{display:flex;align-items:center;gap:8px;border:0;background:transparent;color:#405b4e;font-weight:600;cursor:pointer}
+.luna-auth-card{box-sizing:border-box;width:min(100%,460px);margin:28px auto 0;padding:34px 38px;background:#fffdf8;border:1px solid #e7e1d5;border-radius:18px;box-shadow:0 22px 60px #273c3518;text-align:center}
+.luna-auth-logo{width:72px;height:72px;object-fit:contain;border-radius:50%;margin-bottom:10px}
+.luna-auth-brand{display:flex;justify-content:center;align-items:center;gap:8px;color:#8b7145;font-size:11px;font-weight:700;letter-spacing:3px}
+.luna-auth-card h1{font:600 32px/1.2 'Playfair Display',serif;margin:18px 0 10px}
+.luna-auth-intro{font-size:14px;line-height:1.6;color:#6f7971;margin-bottom:26px}
+.luna-auth-card form{text-align:left;display:grid;gap:16px}
+.luna-auth-card label{display:grid;gap:8px;font-size:13px;font-weight:600}
+.luna-auth-card label span{display:flex;align-items:center;gap:8px}
+.luna-auth-card input{box-sizing:border-box;width:100%;border:1px solid #d9ded6;border-radius:8px;background:#fff;padding:13px 14px;font:14px 'DM Sans',sans-serif;color:#273c35;outline:none}
+.luna-auth-card input:focus{border-color:#78907d;box-shadow:0 0 0 3px #78907d20}
+.luna-auth-submit{margin-top:5px;padding:14px;border:0;border-radius:8px;background:#405b4e;color:white;font-weight:700;cursor:pointer}
+.luna-auth-submit:disabled{opacity:.6;cursor:wait}
+.luna-auth-error{padding:11px 12px;border-radius:7px;background:#fff0ed;color:#a33d30;font-size:13px;line-height:1.5}
+.luna-auth-switch{font-size:13px;margin:22px 0 14px}
+.luna-auth-switch button{border:0;background:none;color:#8b7145;font-weight:700;cursor:pointer}
+.luna-auth-card>small{font-size:11px;color:#788078}@media(max-width:480px){.luna-auth-card{padding:28px 22px}
+.luna-auth-card h1{font-size:28px}}
+.luna-terms-accept{margin:14px 0;color:#4d4a47;font-size:13px}.luna-terms-accept>label{display:flex;align-items:flex-start;gap:9px}.luna-terms-accept input{margin-top:3px}.luna-terms-accept button{border:0;background:none;color:#936b43;text-decoration:underline;padding:0;cursor:pointer;font:inherit}
+.luna-terms-overlay{position:fixed;inset:0;z-index:5000;background:#171412b8;display:flex;align-items:center;justify-content:center;padding:18px}.luna-terms-modal{position:relative;background:#fff;border-radius:16px;width:min(760px,96vw);max-height:90vh;padding:28px;display:flex;flex-direction:column;gap:16px}.luna-terms-modal h2{margin:0;color:#33271f}.luna-terms-content{overflow:auto;line-height:1.55;color:#514a44}.luna-terms-content h3{font-size:15px;margin:18px 0 4px}.luna-terms-content p{margin:4px 0}.luna-terms-close{position:absolute;right:14px;top:8px;border:0;background:none;font-size:28px;cursor:pointer}
+/* Consentimiento de términos: último campo del registro y texto en una sola línea. */
+.luna-terms-accept{margin:18px 0 8px;padding:12px 14px;border:1px solid #e8dfd3;border-radius:10px;background:#fbf8f3;color:#4d4a47;font-size:13px}
+.luna-terms-accept>label{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:9px;white-space:normal}
+.luna-terms-accept input{flex:0 0 auto;margin:0;width:16px;height:16px;accent-color:#8d6aa8}
+.luna-terms-accept span{display:inline;line-height:1.45}
+.luna-terms-accept button{display:inline;color:#805c9c;font-weight:700;text-decoration:underline;white-space:normal}

@@ -1,0 +1,68 @@
+.lunaria-room-dashboard{background:#f7f8fc!important;border:0!important;box-shadow:none!important}
+.lunaria-room-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:24px}
+.lunaria-room-stat{position:relative;min-height:78px;background:#fff;border:1px solid #edf0f5;border-radius:11px;padding:14px 16px;display:flex;flex-direction:column;justify-content:center;box-shadow:0 1px 3px #202a4010}
+.lunaria-room-stat span{font-size:10px;letter-spacing:.08em;font-weight:800;color:#87909f;margin-bottom:5px}
+.lunaria-room-stat strong{font-size:25px;line-height:1.1;color:#252a35}
+.lunaria-room-stat svg{position:absolute;right:14px;top:20px;padding:9px;box-sizing:content-box;border-radius:10px;background:#f3f5f8;color:#a1a8b4}
+.lunaria-room-stat.occupied span,.lunaria-room-stat.occupied strong,.lunaria-room-stat.occupied svg{color:#7561d9}.lunaria-room-stat.occupied svg{background:#f1efff}
+.lunaria-room-stat.ready span,.lunaria-room-stat.ready strong,.lunaria-room-stat.ready svg{color:#079b70}.lunaria-room-stat.ready svg{background:#e9fbf4}
+.lunaria-room-stat.maintenance span,.lunaria-room-stat.maintenance strong,.lunaria-room-stat.maintenance svg{color:#e58b00}.lunaria-room-stat.maintenance svg{background:#fff7e5}
+.lunaria-room-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.lunaria-room-search{height:40px;min-width:260px;max-width:360px;flex:1;display:flex;align-items:center;gap:9px;padding:0 12px;background:#fff;border:1px solid #e5e8ef;border-radius:9px;color:#9aa2b1}
+.lunaria-room-search input{border:0!important;outline:0!important;box-shadow:none!important;width:100%;min-width:0;font:inherit;font-size:13px;color:#343a46;background:transparent}
+.lunaria-room-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lunaria-room-filter{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid #e5e8ef;border-radius:9px;background:#fff;color:#687080;font-size:12px;font-weight:700;cursor:pointer}
+.lunaria-room-filter b{font-size:11px;color:#8b93a1}.lunaria-room-filter.selected{background:#17171d;color:#fff;border-color:#17171d;box-shadow:0 2px 5px #17171d20}.lunaria-room-filter.selected b{color:#fff}
+.lunaria-room-filter.disponible svg{color:#0bb889}.lunaria-room-filter.ocupada svg{color:#7561d9}.lunaria-room-filter.mantenimiento svg{color:#ed9b0b}
+.lunaria-room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:11px;margin-top:18px}
+.lunaria-room-unit-card{border:1px solid #e9edf3;border-radius:10px;padding:12px;background:#fff;min-width:0;box-shadow:0 1px 3px #202a4008}
+.lunaria-room-unit-card strong{color:#252a35}.lunaria-room-unit-id,.lunaria-room-guest{display:block;color:#8b93a1;font-size:11px;margin-top:3px}.lunaria-room-guest{color:#596579;margin-bottom:8px}
+.lunaria-room-empty{grid-column:1/-1;text-align:center;color:#7b8492;padding:24px}
+.reserva-habitaciones-fisicas{display:block;margin-top:5px;color:#687080;font-size:11px;line-height:1.5}
+@media(max-width:900px){.lunaria-room-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.lunaria-room-toolbar{align-items:stretch}.lunaria-room-search{max-width:none}}
+@media(max-width:520px){.lunaria-room-stats{gap:8px}.lunaria-room-stat{padding:11px;min-height:72px}.lunaria-room-stat strong{font-size:21px}.lunaria-room-stat svg{right:8px;top:14px;width:18px;height:18px}.lunaria-room-filters{width:100%}.lunaria-room-filter{flex:1;justify-content:center;padding:8px 7px}.lunaria-room-filter span{font-size:11px}}
+
+
+/* Identidad visual Lunaria: tarjetas de habitaciones con el mismo glassmorphism
+   utilizado en los contenedores de tablas del resto de módulos. */
+.lunaria-room-dashboard {
+  background: transparent !important;
+}
+.lunaria-room-unit-card {
+  background: rgba(253, 246, 226, 0.45) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(235, 217, 180, 0.5) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(35, 29, 18, 0.08) !important;
+}
+.lunaria-room-unit-card strong {
+  color: #252a35;
+}
+.lunaria-room-unit-card .lunaria-room-unit-id,
+.lunaria-room-unit-card .lunaria-room-guest {
+  color: #596579;
+}
+
+.lunaria-room-collapse-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.38);color:#292333}
+.lunaria-room-collapse-bar button{border:1px solid rgba(255,255,255,.65);border-radius:9px;padding:8px 13px;background:rgba(255,255,255,.24);color:#292333;font-weight:700;cursor:pointer;backdrop-filter:blur(12px)}
+.lunaria-room-unit-card{color:#292333!important;background:rgba(255,255,255,.30)!important;border-color:rgba(255,255,255,.62)!important;backdrop-filter:blur(14px)}
+.lunaria-room-unit-card small,.lunaria-room-unit-card div{color:#393344!important}
+
+
+/* Alineación uniforme de estados en tablas y listados administrativos. */
+.lunaria-admin-shell td:has(.status-badge),
+.lunaria-admin-shell td:has(.estado-badge),
+.lunaria-admin-shell td:has([class*="status"]),
+.lunaria-admin-shell td:has([class*="estado"]){text-align:center!important;vertical-align:middle!important;}
+.lunaria-admin-shell .status-badge,
+.lunaria-admin-shell .estado-badge,
+.lunaria-admin-shell [class*="status-badge"],
+.lunaria-admin-shell [class*="estado-badge"]{display:inline-flex;align-items:center;justify-content:center;text-align:center;min-width:104px;box-sizing:border-box;white-space:nowrap;margin-inline:auto;}
+.lunaria-admin-shell .roles-table-container .role-row [class*="status"],
+.lunaria-admin-shell .roles-table-container .role-row [class*="estado"]{justify-self:center;text-align:center;}
+.lunaria-admin-shell table td{vertical-align:middle;}
+
+.lunaria-admin-shell .role-row>span:has(.status-badge),
+.lunaria-admin-shell .role-row>span:has([style*="border-radius"]){display:flex;align-items:center;justify-content:center;text-align:center;}
+.lunaria-admin-shell .role-row>span:has(.status-badge)>small{display:block;text-align:center;}

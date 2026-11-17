@@ -1,0 +1,15 @@
+.lunaria-system-overlay{position:fixed;inset:0;z-index:200000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(35,29,22,.48);backdrop-filter:blur(2px);box-sizing:border-box;}
+.lunaria-system-modal{width:min(100%,410px);padding:28px 30px 24px;background:#fef8e2;border:1px solid #ebd9b4;border-radius:18px;box-shadow:0 14px 48px rgba(35,29,22,.24);display:flex;align-items:center;flex-direction:column;text-align:center;gap:13px;animation:lunaria-modal-in .18s ease-out;}
+.lunaria-system-icon{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:#eee4d1;color:#8b6a3e;}
+.lunaria-system-icon-exito{background:#e5efdf;color:#557747;}
+.lunaria-system-icon-confirmacion{background:#eee5f6;color:#7950a0;}
+.lunaria-system-modal h3{margin:0;color:#342b20;font-family:Georgia,'Times New Roman',serif;font-size:1.3rem;font-weight:600;}
+.lunaria-system-modal p{margin:0;color:#51483d;font-size:.98rem;line-height:1.55;overflow-wrap:anywhere;}
+.lunaria-system-actions{display:flex;justify-content:center;gap:11px;width:100%;margin-top:8px;}
+.lunaria-system-actions button{min-width:112px;padding:10px 19px;border-radius:9px;font-size:.93rem;font-weight:600;cursor:pointer;transition:filter .15s,transform .15s;}
+.lunaria-system-actions button:hover{filter:brightness(.96);transform:translateY(-1px);}
+.lunaria-system-cancel{border:1px solid #c9a96e;background:transparent;color:#5c4a32;}
+.lunaria-system-accept{border:1px solid #8b6b43;background:#8b6b43;color:#fff;}
+@keyframes lunaria-modal-in{from{opacity:0;transform:translateY(7px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:480px){.lunaria-system-modal{padding:24px 20px 20px}
+.lunaria-system-actions button{min-width:0;flex:1}}
