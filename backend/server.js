@@ -602,7 +602,7 @@ app.post('/api/usuarios', exigirToken, exigirModulo('usuarios'), async (req, res
     await connection.query('INSERT INTO logs_seguridad (idUsuarioActorFK,idUsuarioObjetivoFK,accion,detalle) VALUES (?,?,?,?)',
       [req.sesion.idUsuarios,result.insertId,'CUENTA_CREADA','Se envió enlace para que el usuario configure su contraseña.']);
     await connection.commit();
-    const base=process.env.FRONTEND_URL||req.headers.origin||'http://localhost:5173';
+    const base = process.env.FRONTEND_URL || req.headers.origin || 'https://lunariasuites.vercel.app';
     const link=`${base.replace(/\/$/,'')}/restablecer-contrasena?token=${token}`;
     let correoEnviado=true;
     try{await mailer.sendMail({from:process.env.SMTP_FROM||process.env.SMTP_USER,to:Email.trim(),
@@ -2783,7 +2783,7 @@ app.post('/api/usuarios/:id/restablecer-contrasena', exigirToken, exigirGerente,
     await db.query('UPDATE recuperacion_admin SET usado=1 WHERE idUsuariosFK=? AND usado=0',[id]);
     await db.query(`INSERT INTO recuperacion_admin (idUsuariosFK,tokenHash,expiraEn,solicitadoPorFK)
       VALUES (?,?,DATE_ADD(NOW(),INTERVAL 30 MINUTE),?)`,[id,hash,req.sesion.idUsuarios]);
-    const base=process.env.FRONTEND_URL||req.headers.origin||'http://localhost:5173';
+    const base = process.env.FRONTEND_URL || req.headers.origin || 'https://lunariasuites.vercel.app';
     const link=`${base.replace(/\/$/,'')}/restablecer-contrasena?token=${token}`;
     await mailer.sendMail({from:process.env.SMTP_FROM||process.env.SMTP_USER,to:u.Email,
       subject:'Hotel Lunaria: restablece tu contraseña',
@@ -2825,5 +2825,5 @@ app.patch('/api/huespedes/:id/completar', exigirToken, async(req,res)=>{
 db.query("SELECT valor FROM configuracion_hotel WHERE clave='iva_porcentaje' LIMIT 1").then(([rows])=>{if(rows[0]&&Number.isFinite(Number(rows[0].valor)))ivaPorcentajeActual=Number(rows[0].valor);}).catch(()=>{});
 
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`Servidor corriendo en el puerto ${PORT}`);
 });

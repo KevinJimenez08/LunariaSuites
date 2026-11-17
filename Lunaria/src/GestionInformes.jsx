@@ -11,7 +11,7 @@ export default function GestionInformes({sesion}){
   setCargando(true);setError('');
   try{
    const params=new URLSearchParams({periodo,valor,sedeId});
-   const r=await fetch(`http://localhost:3000/api/informes/estadisticas?${params.toString()}`,{headers:{Authorization:`Bearer ${sesion?.token||localStorage.getItem('lunariaToken')||''}`}});
+   const r=await fetch(`https://lunariasuites.onrender.com/api/informes/estadisticas?${params.toString()}`,{headers:{Authorization:`Bearer ${sesion?.token||localStorage.getItem('lunariaToken')||''}`}});
    const d=await r.json();if(!r.ok)throw new Error(d.mensaje||'No se pudo consultar el informe.');setSedes(d.sedes||[]);setDatos(d);
   }catch(e){setError(e.message);}finally{setCargando(false);}
  };

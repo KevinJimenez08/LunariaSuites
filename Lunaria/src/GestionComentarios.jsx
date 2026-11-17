@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { MessageCircle, Send, RefreshCw } from 'lucide-react';
 
-const API = 'http://localhost:3000/api';
+const API = 'hhttps://lunariasuites.onrender.com/api';
 export default function GestionComentarios({ sesion, clienteOnly = false, compact = false }) {
   const [comentarios, setComentarios] = useState([]);
   const [clientes, setClientes] = useState([]);

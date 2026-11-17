@@ -32,7 +32,7 @@ export default function GestionServicios() {
 
   const cargarServicios = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:3000/api/servicios', { headers: authHeaders() });
+      const res = await fetch('https://lunariasuites.onrender.com/api/servicios', { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setServicios(data);
@@ -49,7 +49,7 @@ export default function GestionServicios() {
   const handleGuardarNuevo = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:3000/api/servicios', {
+      const res = await fetch('https://lunariasuites.onrender.com/api/servicios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
@@ -76,7 +76,7 @@ export default function GestionServicios() {
   const handleGuardarEdicion = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://localhost:3000/api/servicios/${servicioEditando.idServicios}`, {
+      const res = await fetch(`https://lunariasuites.onrender.com/api/servicios/${servicioEditando.idServicios}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
@@ -101,7 +101,7 @@ export default function GestionServicios() {
 
   const ejecutarEliminacion = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/api/servicios/${confirmarEliminarId}`, { method: 'DELETE', headers: authHeaders() });
+      const res = await fetch(`https://lunariasuites.onrender.com/api/servicios/${confirmarEliminarId}`, { method: 'DELETE', headers: authHeaders() });
 
       if (res.ok) {
         setConfirmarEliminarId(null);

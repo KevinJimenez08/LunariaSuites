@@ -43,31 +43,31 @@ export default function GestionHabitaciones() {
   });
 
   const cargarImagenes = async (id) => {
-    try { const r=await fetch(`http://localhost:3000/api/habitaciones/${id}/imagenes`); if(r.ok)setImagenesHabitacion(await r.json()); } catch {}
+    try { const r=await fetch(`https://lunariasuites.onrender.com/api/habitaciones/${id}/imagenes`); if(r.ok)setImagenesHabitacion(await r.json()); } catch {}
   };
   const subirImagenes = async (files,id) => {
     for (const file of Array.from(files||[])) {
       if(!file.type.startsWith('image/') || file.size>5*1024*1024){setAlertaMsg('Cada imagen debe ser JPG, PNG o WEBP y pesar máximo 5 MB.');continue;}
       const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});
-      const r=await fetch(`http://localhost:3000/api/habitaciones/${id}/imagenes`,{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({nombre:file.name,data})});
+      const r=await fetch(`https://lunariasuites.onrender.com/api/habitaciones/${id}/imagenes`,{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({nombre:file.name,data})});
       if(!r.ok){const d=await r.json().catch(()=>({}));setAlertaMsg(d.mensaje||'No se pudo subir una imagen.');}
     }
     await cargarImagenes(id);
   };
   const eliminarImagen = async (id) => {
-    const r=await fetch(`http://localhost:3000/api/habitaciones/imagenes/${id}`,{method:'DELETE',headers:authHeaders()});
+    const r=await fetch(`https://lunariasuites.onrender.com/api/habitaciones/imagenes/${id}`,{method:'DELETE',headers:authHeaders()});
     if(r.ok)setImagenesHabitacion(xs=>xs.filter(x=>x.idImagen!==id));
   };
 
   const cargarHabitaciones = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:3000/api/habitaciones', { headers: authHeaders() });
+      const res = await fetch('https://lunariasuites.onrender.com/api/habitaciones', { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         setHabitaciones(data);
       }
-      const unidadesRes = await fetch('http://localhost:3000/api/habitaciones/unidades', { headers: authHeaders() });
-      const sedesRes = await fetch('http://localhost:3000/api/sedes'); if (sedesRes.ok) setSedes(await sedesRes.json());
+      const unidadesRes = await fetch('https://lunariasuites.onrender.com/api/habitaciones/unidades', { headers: authHeaders() });
+      const sedesRes = await fetch('https://lunariasuites.onrender.com/api/sedes'); if (sedesRes.ok) setSedes(await sedesRes.json());
       if (unidadesRes.ok) setUnidadesFisicas(await unidadesRes.json());
     } catch (err) {
       console.error('Error al cargar habitaciones:', err);
@@ -83,7 +83,7 @@ export default function GestionHabitaciones() {
   const handleGuardarNueva = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:3000/api/habitaciones', {
+      const res = await fetch('https://lunariasuites.onrender.com/api/habitaciones', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
@@ -109,7 +109,7 @@ export default function GestionHabitaciones() {
   const handleGuardarEdicion = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://localhost:3000/api/habitaciones/${habitacionEditando.idHabitaciones}`, {
+      const res = await fetch(`https://lunariasuites.onrender.com/api/habitaciones/${habitacionEditando.idHabitaciones}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
@@ -133,7 +133,7 @@ export default function GestionHabitaciones() {
 
   const ejecutarEliminacion = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/api/habitaciones/${confirmarEliminarId}`, { method: 'DELETE', headers: authHeaders() });
+      const res = await fetch(`https://lunariasuites.onrender.com/api/habitaciones/${confirmarEliminarId}`, { method: 'DELETE', headers: authHeaders() });
 
       if (res.ok) {
         setConfirmarEliminarId(null);
@@ -150,7 +150,7 @@ export default function GestionHabitaciones() {
   const cambiarEstadoUnidad = async (unidad, nuevoEstado) => {
     setActualizandoUnidad(unidad.idUnidad);
     try {
-      const res = await fetch(`http://localhost:3000/api/habitaciones/unidades/${unidad.idUnidad}/estado`, {
+      const res = await fetch(`https://lunariasuites.onrender.com/api/habitaciones/unidades/${unidad.idUnidad}/estado`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ estado: nuevoEstado })
@@ -466,7 +466,7 @@ export default function GestionHabitaciones() {
               <small>Máximo 5 MB por imagen. Las imágenes se guardan en el servidor.</small>
               <div style={{display:'flex',flexWrap:'wrap',gap:10,marginTop:10}}>
                 {imagenesHabitacion.map(img=><div key={img.idImagen} style={{width:105}}>
-                  <img src={`http://localhost:3000${img.ruta}`} alt="Habitación" style={{width:100,height:75,objectFit:'cover',borderRadius:8}}/>
+                  <img src={`https://lunariasuites.onrender.com${img.ruta}`} alt="Habitación" style={{width:100,height:75,objectFit:'cover',borderRadius:8}}/>
                   <button type="button" onClick={()=>eliminarImagen(img.idImagen)}>Eliminar</button>
                 </div>)}
               </div>

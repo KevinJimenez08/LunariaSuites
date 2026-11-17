@@ -7,17 +7,17 @@ export default function CentroNotificaciones({sesion}){
  const headers={Authorization:`Bearer ${token}`};
  const cargar=useCallback(async()=>{
   try{
-   const r=await fetch('http://localhost:3000/api/notificaciones',{headers});
+   const r=await fetch('https://lunariasuites.onrender.com/api/notificaciones',{headers});
    if(r.ok){const data=await r.json();setItems(Array.isArray(data)?data:[]);}
   }catch{}
  },[token]);
  useEffect(()=>{cargar();const timer=setInterval(cargar,20000);return()=>clearInterval(timer);},[cargar]);
  const leer=async id=>{
-  try{const r=await fetch(`http://localhost:3000/api/notificaciones/${id}/leida`,{method:'PATCH',headers});if(r.ok)setItems(prev=>prev.map(n=>n.idNotificacion===id?{...n,leida:1}:n));}
+  try{const r=await fetch(`https://lunariasuites.onrender.com/api/notificaciones/${id}/leida`,{method:'PATCH',headers});if(r.ok)setItems(prev=>prev.map(n=>n.idNotificacion===id?{...n,leida:1}:n));}
   catch{}
  };
  const eliminar=async id=>{
-  try{const r=await fetch(`http://localhost:3000/api/notificaciones/${id}`,{method:'DELETE',headers});if(r.ok)setItems(prev=>prev.filter(n=>n.idNotificacion!==id));}
+  try{const r=await fetch(`https://lunariasuites.onrender.com/api/notificaciones/${id}`,{method:'DELETE',headers});if(r.ok)setItems(prev=>prev.filter(n=>n.idNotificacion!==id));}
   catch{}
  };
  const pendientes=items.filter(x=>!x.leida).length;

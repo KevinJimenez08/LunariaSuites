@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
-const API='http://localhost:3000/api';
+const API='https://lunariasuites.onrender.com/api';
 export default function ResenasPublicas({sesion}){
  const [items,setItems]=useState([]),[calificacion,setCalificacion]=useState(5),[titulo,setTitulo]=useState(''),[comentario,setComentario]=useState(''),[mensaje,setMensaje]=useState(''),[error,setError]=useState('');
  const cargar=async()=>{try{const r=await fetch(`${API}/resenas`);const d=await r.json();if(r.ok)setItems(Array.isArray(d)?d:[]);}catch{}};

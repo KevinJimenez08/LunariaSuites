@@ -41,8 +41,8 @@ export default function GestionHuespedes() {
     setErrorCarga(null);
     try {
       const [resHue, resCli] = await Promise.all([
-        fetch('http://localhost:3000/api/huespedes', { headers: authHeaders() }),
-        fetch('http://localhost:3000/api/huespedes/clientes', { headers: authHeaders() })
+        fetch('https://lunariasuites.onrender.com/api/huespedes', { headers: authHeaders() }),
+        fetch('https://lunariasuites.onrender.com/api/huespedes/clientes', { headers: authHeaders() })
       ]);
 
       if (!resHue.ok) throw new Error('Error al obtener huéspedes');
@@ -68,7 +68,7 @@ export default function GestionHuespedes() {
   const handleGuardarNueva = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:3000/api/huespedes', {
+      const res = await fetch('https://lunariasuites.onrender.com/api/huespedes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(nuevoHuesped)
@@ -92,7 +92,7 @@ export default function GestionHuespedes() {
   const handleActualizarHuesped = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://localhost:3000/api/huespedes/${huespedEditando.idHuespedes}`, {
+      const res = await fetch(`https://lunariasuites.onrender.com/api/huespedes/${huespedEditando.idHuespedes}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
@@ -117,7 +117,7 @@ export default function GestionHuespedes() {
   // Eliminar huésped
   const ejecutarEliminacion = async () => {
     try {
-      const res = await fetch(`http://localhost:3000/api/huespedes/${confirmarEliminarId}`, { method: 'DELETE', headers: authHeaders() });
+      const res = await fetch(`https://lunariasuites.onrender.com/api/huespedes/${confirmarEliminarId}`, { method: 'DELETE', headers: authHeaders() });
 
       if (res.ok) {
         setConfirmarEliminarId(null);
@@ -134,7 +134,7 @@ export default function GestionHuespedes() {
 
   const marcarCompletado = async (id) => {
     try {
-      const r=await fetch(`http://localhost:3000/api/huespedes/${id}/completar`,{method:'PATCH',headers:authHeaders()});
+      const r=await fetch(`https://lunariasuites.onrender.com/api/huespedes/${id}/completar`,{method:'PATCH',headers:authHeaders()});
       const d=await r.json(); if(!r.ok) throw new Error(d.mensaje||'No se pudo completar.');
       setAlertaMsg(d.mensaje); cargarDatos();
     } catch(e){setAlertaMsg(e.message);}
