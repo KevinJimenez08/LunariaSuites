@@ -38,7 +38,9 @@ app.get('/api/test', async (req, res) => {
   }
 });
 
-
+function hashCodigoRecuperacion(codigo) {
+  return crypto.createHash('sha256').update(String(codigo)).digest('hex');
+}
 
 const crearTransportadorCorreo = () => {
   if (!process.env.RESEND_API_KEY) return null;
