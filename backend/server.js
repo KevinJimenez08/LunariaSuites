@@ -6,7 +6,7 @@ const cors = require('cors');
 const db = require('./db.js');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -40,11 +40,35 @@ app.get('/api/test', async (req, res) => {
 
 
 
-// Recuperación: token numérico criptográfico, hash único en BD y expiración de 2 minutos.
-const hashCodigoRecuperacion = codigo => crypto.createHash('sha256').update(String(codigo)).digest('hex');
 const crearTransportadorCorreo = () => {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
-  return nodemailer.createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT||587),secure:String(process.env.SMTP_SECURE||'false')==='true',auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_PASS}});
+  if (!process.env.RESEND_API_KEY) return null;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  return {
+    sendMail: async ({ from, to, subject, text, html, attachments }) => {
+      const remitente = (from && !from.includes('@gmail.com'))
+        ? from
+        : 'Hotel Lunaria <onboarding@resend.dev>';
+
+      const payload = {
+        from: remitente,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        ...(html ? { html } : { text }),
+        ...(Array.isArray(attachments) && attachments.length
+          ? {
+              attachments: attachments.map((att) => ({
+                filename: att.filename,
+                content: att.content
+              }))
+            }
+          : {})
+      };
+
+      const { data, error } = await resend.emails.send(payload);
+      if (error) throw new Error(error.message || 'Error enviando correo con Resend');
+      return data;
+    }
+  };
 };
 
 // PDF sencillo generado en servidor para adjuntar el comprobante de la reserva al correo.
@@ -1791,28 +1815,10 @@ let paqueteNombre = '';
   }
 
   let emailEnviado = false;
+  const mailerReserva = crearTransportadorCorreo();
 
-  const {
-    SMTP_HOST,
-    SMTP_PORT,
-    SMTP_SECURE,
-    SMTP_USER,
-    SMTP_PASS,
-    SMTP_FROM
-  } = process.env;
-
-  if (SMTP_HOST && SMTP_USER && SMTP_PASS && emailCliente) {
+  if (mailerReserva && emailCliente) {
     try {
-      const transporter = nodemailer.createTransport({
-        host: SMTP_HOST,
-        port: Number(SMTP_PORT || 587),
-        secure: String(SMTP_SECURE || 'false').toLowerCase() === 'true',
-        auth: {
-          user: SMTP_USER,
-          pass: SMTP_PASS
-        }
-      });
-
       const lineas = [
         `Hola ${nombreCliente},`,
         '',
@@ -1840,8 +1846,8 @@ let paqueteNombre = '';
         'Esta solicitud queda pendiente hasta que el hotel confirme la reserva.'
       ].join('\n');
 
-      await transporter.sendMail({
-        from: SMTP_FROM || SMTP_USER,
+      await mailerReserva.sendMail({
+        from: process.env.SMTP_FROM || 'Hotel Lunaria <onboarding@resend.dev>',
         to: emailCliente,
         subject: `Hotel Lunaria: ${codigoReserva} — ${estadoReserva}`,
         text: lineas,
@@ -1890,18 +1896,11 @@ let paqueteNombre = '';
       );
 
       console.log('Correo de reserva enviado correctamente a:', emailCliente);
-
     } catch (error) {
       console.error('No se pudo enviar el correo de reserva:', error);
     }
-
   } else {
-    console.error('No se envió el correo. Verifica:', {
-      hostConfigurado: Boolean(SMTP_HOST),
-      usuarioConfigurado: Boolean(SMTP_USER),
-      contrasenaConfigurada: Boolean(SMTP_PASS),
-      correoClienteConfigurado: Boolean(emailCliente)
-    });
+    console.error('No se envió el correo. Verifica RESEND_API_KEY en Render.');
   }
 
   return res.status(201).json({
