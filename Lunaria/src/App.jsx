@@ -41,7 +41,7 @@ function CambiarContrasena({ sesion }) {
   const [error, setError] = useState('');
   const enviar = async (e) => {
     e.preventDefault(); setError(''); setMensaje('');
-    if (nueva.length < 6) return setError('La nueva contraseña debe tener al menos 6 caracteres.');
+    if (nueva.length < 8) return setError('La nueva contraseña debe tener al menos 8 caracteres.');
     if (nueva !== confirmar) return setError('La confirmación no coincide con la nueva contraseña.');
     setCargando(true);
     try {

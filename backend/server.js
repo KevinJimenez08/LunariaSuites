@@ -428,6 +428,9 @@ function exigirModulo(modulo) {
       if (Number(req.sesion?.idRolesFK) === 1 || ['superadmin', 'gerente'].includes(rol)) return next();
       // Administrador tiene acceso a los módulos operativos, nunca al módulo de roles.
       if ((rol === 'administrador' || rol === 'admin') && modulo !== 'roles') return next();
+      if (rol === 'recepcionista' && ['huespedes', 'clientes', 'reservas'].includes(modulo)) {
+        return next();
+      };
       const permisos = permisosParseados(rows[0].Permisos);
       const permitidos = alias[modulo] || [modulo];
       if (permisos.some(p => p === '*' || p === 'todos' || p === 'todoslosmodulos' || permitidos.includes(p))) return next();
@@ -1107,7 +1110,20 @@ app.put('/api/clientes/:id', exigirToken, exigirModulo('clientes'), async (req, 
   }
 });
 
-app.delete('/api/clientes/:id', exigirToken, exigirModulo('clientes'), async (req, res) => {
+app.delete('/api/clientes/:id', exigirToken, exigirModulo('clientes'), bloquearRecepcionista, async (req, res) => {
+
+  function bloquearRecepcionista(req, res, next) {
+  const rol = normalizarPermiso(req.sesion?.Rol || '');
+
+  if (rol === 'recepcionista') {
+    return res.status(403).json({
+      mensaje: 'No tienes permiso para eliminar registros.'
+    });
+  }
+
+  next();
+}
+
   const { id } = req.params;
   try {
     const sql = 'DELETE FROM clientes WHERE idClientes = ?';
@@ -2324,9 +2340,19 @@ app.put('/api/reservas/:id', exigirToken, exigirModulo('reservas'), async (req, 
 });
 
 // Confirma la reserva y bloquea sus unidades físicas sin modificar el estado del pago.
-app.patch('/api/reservas/:id/estado', exigirToken, exigirModulo('reservas'), async (req, res) => {
+app.put('/api/reservas/:id', exigirToken, exigirModulo('reservas'), bloquearRecepcionista, async (req, res) => {
   const id = Number(req.params.id);
   const estado = String(req.body?.estado || '').trim();
+  const rolActual = normalizarPermiso(req.sesion?.Rol || '');
+
+  if (
+    rolActual === 'recepcionista' &&
+    !['Confirmada', 'Cancelada'].includes(estado)
+  ) {
+    return res.status(403).json({
+      mensaje: 'El recepcionista únicamente puede confirmar o cancelar reservas.'
+    });
+  }
   if (!Number.isInteger(id) || id <= 0 || !['Pendiente', 'Confirmada', 'Cancelada'].includes(estado)) {
     return res.status(400).json({ mensaje: 'Estado de reserva no válido.' });
   }
@@ -2411,7 +2437,7 @@ app.patch('/api/reservas/:id/estado', exigirToken, exigirModulo('reservas'), asy
   }
 });
 
-app.delete('/api/reservas/:id', exigirToken, exigirModulo('reservas'), async (req, res) => {
+app.delete('/api/reservas/:id', exigirToken, exigirModulo('reservas'), bloquearRecepcionista, async (req, res) => {
   const { id } = req.params;
   const connection = await db.getConnection();
   try {
@@ -2653,7 +2679,7 @@ app.patch('/api/reservas/:id/cancelar', exigirToken, async (req, res) => {
       WHERE r.idReservas=? LIMIT 1`, [id]);
     if (!r) return res.status(404).json({ mensaje: 'Reserva no encontrada.' });
     const rol = normalizarPermiso(req.sesion.Rol || '');
-    const personal = ['gerente','superadmin','administrador','admin'].includes(rol);
+    const personal = ['gerente','superadmin','administrador','admin', 'recepcionista'].includes(rol);
     if (!personal && Number(r.idClientesFK) !== Number(req.sesion.idClientesFK)) return res.status(403).json({ mensaje: 'No puedes cancelar una reserva que no te pertenece.' });
     if (String(r.estado).toLowerCase() === 'cancelada') return res.json({ mensaje: 'La reserva ya estaba cancelada.' });
     await db.query("UPDATE reservas SET estado='Cancelada', observacionPago=CONCAT(COALESCE(observacionPago,''), ?) WHERE idReservas=?",

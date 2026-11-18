@@ -45,7 +45,8 @@ function esSoporte(usuario = {}) {
 function permisosDeSesion(sesion) {
   const usuario = sesion?.usuario || {};
   if (esSuperAdmin(usuario)) return new Set(menuItems.map(item => item.id));
-  if (normalizarPermiso(usuario.Rol) === 'recepcionista') return new Set(['huespedes']);
+  if (normalizarPermiso(usuario.Rol) === 'recepcionista') {
+  return new Set(['huespedes', 'clientes', 'reservas']);};
   // El Administrador puede gestionar todos los módulos operativos, pero no los roles.
   if (esAdministrador(usuario)) return new Set(menuItems.filter(item => !['roles','informes'].includes(item.id)).map(item => item.id));
   if (esSoporte(usuario)) return new Set(['comentarios']);
@@ -65,7 +66,8 @@ function tienePermisoModulo(sesion, modulo) {
   const permisos = permisosDeSesion(sesion);
   if (esSuperAdmin(sesion?.usuario)) return true;
   if (esAdministrador(sesion?.usuario)) return !['roles','informes'].includes(modulo);
-  if (normalizarPermiso(sesion?.usuario?.Rol) === 'recepcionista') return modulo === 'huespedes';
+  if (normalizarPermiso(sesion?.usuario?.Rol) === 'recepcionista') {
+  return ['huespedes', 'clientes', 'reservas'].includes(modulo);};
   if (esSoporte(sesion?.usuario)) return modulo === 'comentarios';
   const alias = {
     roles: ['roles', 'gestionroles', 'gestionderoles', 'administracionderoles'], usuarios: ['usuarios', 'gestionusuarios', 'gestiondeusuarios'],
