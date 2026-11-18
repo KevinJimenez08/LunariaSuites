@@ -1160,24 +1160,32 @@ async function asignarUnidadesFisicas(connection, reservaId, grupos, inicio, fin
 
 async function elegirHabitacionesPorCapacidad(connection, inicio, fin, personas, preferidaId, paqueteId, idSedeFK = null) {
   const huespedes = Math.max(1, Number.parseInt(personas, 10) || 1);
+  
+  // Permitimos que la habitación preferida sea encontrada aunque el idSedeFK difiera o no coincida estrictamente
   const [disponibles] = await connection.query(`
-    SELECT h.idHabitaciones, h.tipo, h.capacidad, h.precio,
+    SELECT h.idHabitaciones, h.tipo, h.capacidad, h.precio, h.idSedeFK,
       (SELECT COUNT(*) FROM habitaciones_unidades u
-       WHERE u.idHabitacionesFK=h.idHabitaciones AND u.estado='Disponible' AND (? IS NULL OR u.idSedeFK=?)
+       WHERE u.idHabitacionesFK=h.idHabitaciones AND u.estado='Disponible'
          AND NOT EXISTS (
            SELECT 1 FROM reservas_has_unidades ru JOIN reservas r ON r.idReservas=ru.idReservasFK
            WHERE ru.idUnidadFK=u.idUnidad AND r.fechaInicio < ? AND r.fechaFin > ?
              AND LOWER(COALESCE(r.estado,'pendiente')) NOT IN ('cancelada','cancelado','rechazada','anulada')
          )) AS unidadesDisponibles
-    FROM habitaciones h WHERE h.estado=1 AND (? IS NULL OR h.idSedeFK = ?)
+    FROM habitaciones h 
+    WHERE h.estado=1 AND (
+      (? IS NULL OR h.idSedeFK = ?) 
+      OR h.idHabitaciones = ?
+    )
     HAVING unidadesDisponibles > 0
     ORDER BY h.precio ASC
     FOR UPDATE
-  `, [idSedeFK || null, idSedeFK || null, fin, inicio, idSedeFK || null, idSedeFK || null]);
+  `, [fin, inicio, idSedeFK || null, idSedeFK || null, preferidaId || 0]);
+
   const capacidad = h => Math.max(1, Number.parseInt(String(h.capacidad || '').match(/\d+/)?.[0] || '1', 10));
   const grupos = [];
   const usadas = new Map();
   let pendientes = huespedes;
+
   const agregar = h => {
     const grupo = grupos.find(x => Number(x.idHabitaciones) === Number(h.idHabitaciones));
     if (grupo) grupo.cantidadHabitaciones += 1;
@@ -1185,12 +1193,16 @@ async function elegirHabitacionesPorCapacidad(connection, inicio, fin, personas,
     usadas.set(Number(h.idHabitaciones), (usadas.get(Number(h.idHabitaciones)) || 0) + 1);
     pendientes -= Math.min(pendientes, capacidad(h));
   };
-  let base = paqueteId
-    ? disponibles.find(h => Number(h.idHabitaciones) === Number(preferidaId))
-    : disponibles.find(h => Number(h.idHabitaciones) === Number(preferidaId));
-  if (!base) throw new Error('La habitación base no tiene unidades físicas disponibles para esas fechas.');
+
+  let base = disponibles.find(h => Number(h.idHabitaciones) === Number(preferidaId));
+  
+  if (!base) {
+    throw new Error(`La habitación base (ID: ${preferidaId}, Sede filtro: ${idSedeFK}) no tiene unidades físicas disponibles para esas fechas.`);
+  }
+
   agregar(base);
   const ordenadas = [...disponibles].sort((a,b) => capacidad(b)-capacidad(a) || Number(a.precio)-Number(b.precio));
+  
   while (pendientes > 0) {
     const siguiente = ordenadas.find(h => (usadas.get(Number(h.idHabitaciones)) || 0) < Number(h.unidadesDisponibles));
     if (!siguiente) throw new Error(`No hay habitaciones físicas suficientes para alojar a ${huespedes} huésped(es).`);
