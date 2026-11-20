@@ -13,7 +13,7 @@ const path = require('path');
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? (() => { throw new Error('Configura JWT_SECRET en el entorno de producción.'); })() : 'lunaria-local-secret-cambiar-en-produccion');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: '12mb' }));
@@ -116,7 +116,6 @@ function crearPdfReserva(datos) {
   ];
   const ops = [];
   let y = 790;
-  const ancho = 495;
   const escribir = (texto, size, bold=false, align='left') => {
     const safe = escapar(texto);
     const estimado = normalizar(texto).length * size * 0.52;
@@ -171,8 +170,10 @@ function leerComprobanteBase64(comprobante) {
 console.log('Configuración de correo:', {
   host: process.env.SMTP_HOST,
   usuarioConfigurado: Boolean(process.env.SMTP_USER),
-  contraseñaConfigurada: Boolean(process.env.SMTP_PASS)
+  contraseñaConfigurada: Boolean(process.env.SMTP_PASS),
+  resendConfigurado: Boolean(process.env.RESEND_API_KEY)
 });
+
 app.post('/api/auth/recuperar', async (req,res) => {
   const email=String(req.body?.Email||'').trim().toLowerCase();
   if(!email) return res.status(400).json({mensaje:'Ingresa tu correo electrónico.'});
@@ -180,7 +181,7 @@ app.post('/api/auth/recuperar', async (req,res) => {
     const [usuarios]=await db.query('SELECT idUsuarios,Email FROM usuarios WHERE LOWER(Email)=? AND Estado=1 LIMIT 1',[email]);
     if(!usuarios.length) return res.json({mensaje:'Si el correo está registrado, recibirás un código.'});
     const mailer=crearTransportadorCorreo();
-    if(!mailer) return res.status(503).json({mensaje:'Configura SMTP_HOST, SMTP_USER y SMTP_PASS en backend/.env.'});
+    if(!mailer) return res.status(503).json({mensaje:'Configura RESEND_API_KEY o SMTP en el entorno.'});
     let codigo,hash,unico=false;
     for(let i=0;i<40;i++){
       codigo=String(crypto.randomInt(0,1000000)).padStart(6,'0'); hash=hashCodigoRecuperacion(codigo);
@@ -194,6 +195,7 @@ app.post('/api/auth/recuperar', async (req,res) => {
     res.json({mensaje:'Te enviamos un código de 6 dígitos a tu correo.'});
   } catch(e){console.error('Recuperación:',e);res.status(500).json({mensaje:'No se pudo enviar el código.'});}
 });
+
 app.post('/api/auth/restablecer', async(req,res)=>{
   const email=String(req.body?.Email||'').trim().toLowerCase(),codigo=String(req.body?.codigo||''),nueva=String(req.body?.nuevaContrasena||'');
   if(!email||!/^[0-9]{6}$/.test(codigo)||nueva.length<6)return res.status(400).json({mensaje:'Verifica correo, código y contraseña (mínimo 6 caracteres).'});
@@ -279,7 +281,6 @@ app.post('/api/auth/login', async (req, res) => {
     let valida = false;
     if (String(u.contraseña).startsWith('$2')) valida = await bcrypt.compare(String(contraseña), u.contraseña);
     else {
-      // Compatibilidad con cuentas antiguas guardadas como texto; al entrar se actualizan a hash.
       valida = String(contraseña) === String(u.contraseña);
       if (valida) await db.query('UPDATE usuarios SET contraseña = ? WHERE idUsuarios = ?', [await bcrypt.hash(String(contraseña), 10), u.idUsuarios]);
     }
@@ -308,7 +309,6 @@ function exigirToken(req, res, next) {
   catch { return res.status(401).json({ mensaje: 'Sesión vencida o token no válido. Inicia sesión nuevamente.' }); }
 }
 
-// El cliente puede suspender su cuenta durante un máximo de 90 días.
 app.post('/api/auth/desactivar-cuenta', exigirToken, async (req, res) => {
   if (Number(req.sesion.idRolesFK) !== 4) return res.status(403).json({ mensaje: 'Esta opción está disponible únicamente para cuentas de cliente.' });
   const contrasena = String(req.body?.contrasena || '');
@@ -324,7 +324,6 @@ app.post('/api/auth/desactivar-cuenta', exigirToken, async (req, res) => {
   } catch (error) { console.error('Error al desactivar cuenta:', error); return res.status(500).json({ mensaje: 'No se pudo desactivar la cuenta.' }); }
 });
 
-// La eliminación anonimiza los datos personales y conserva las reservas y facturas históricas.
 app.delete('/api/auth/cuenta', exigirToken, async (req, res) => {
   if (Number(req.sesion.idRolesFK) !== 4) return res.status(403).json({ mensaje: 'Esta opción está disponible únicamente para cuentas de cliente.' });
   const contrasena = String(req.body?.contrasena || '');
@@ -345,8 +344,6 @@ app.delete('/api/auth/cuenta', exigirToken, async (req, res) => {
   finally { connection.release(); }
 });
 
-// Cierre automático de cuentas suspendidas que superan los 90 días: se anonimizan,
-// sin borrar reservas ni movimientos contables relacionados.
 async function cerrarCuentasVencidas() {
   try {
     const [vencidas] = await db.query("SELECT idUsuarios, idClientesFK FROM usuarios WHERE Estado=0 AND fechaDesactivacion IS NOT NULL AND fechaDesactivacion <= DATE_SUB(NOW(), INTERVAL 90 DAY)");
@@ -358,7 +355,6 @@ async function cerrarCuentasVencidas() {
   } catch (error) { console.error('No se pudieron cerrar cuentas vencidas:', error.message); }
 }
 setTimeout(() => { cerrarCuentasVencidas(); setInterval(cerrarCuentasVencidas, 24 * 60 * 60 * 1000); }, 5000);
-
 
 app.post('/api/auth/cambiar-contrasena', exigirToken, async (req, res) => {
   const actual = String(req.body?.contrasenaActual || '');
@@ -400,7 +396,11 @@ app.post('/api/auth/cambiar-contrasena', exigirToken, async (req, res) => {
   }
 });
 
+// ==========================================
+// MIDDLEWARES DE AUTORIZACIÓN Y PERMISOS
+// ==========================================
 const normalizarPermiso = (valor = '') => String(valor).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
 function permisosParseados(valor) {
   if (Array.isArray(valor)) return valor.map(normalizarPermiso);
   if (valor && typeof valor === 'object') return Object.entries(valor).filter(([, v]) => v === true || v === 1 || v === '1').map(([k]) => normalizarPermiso(k));
@@ -412,6 +412,17 @@ function permisosParseados(valor) {
   } catch { /* Los permisos también pueden estar separados por comas o punto y coma. */ }
   return texto.split(/[,;|\n]/).map(normalizarPermiso).filter(Boolean);
 }
+
+function bloquearRecepcionista(req, res, next) {
+  const rol = normalizarPermiso(req.sesion?.Rol || '');
+  if (rol === 'recepcionista' || Number(req.sesion?.idRolesFK) === 3) {
+    return res.status(403).json({
+      mensaje: 'No tienes permiso para eliminar registros.'
+    });
+  }
+  next();
+}
+
 function exigirModulo(modulo) {
   const alias = {
     roles: ['roles', 'gestionroles', 'gestionderoles', 'administracionderoles'], usuarios: ['usuarios', 'gestionusuarios', 'gestiondeusuarios'],
@@ -426,11 +437,10 @@ function exigirModulo(modulo) {
       if (!rows.length || Number(rows[0].Estado) !== 1) return res.status(403).json({ mensaje: 'El rol de esta cuenta está inactivo o no existe.' });
       const rol = normalizarPermiso(rows[0].nomRol);
       if (Number(req.sesion?.idRolesFK) === 1 || ['superadmin', 'gerente'].includes(rol)) return next();
-      // Administrador tiene acceso a los módulos operativos, nunca al módulo de roles.
       if ((rol === 'administrador' || rol === 'admin') && modulo !== 'roles') return next();
-      if (rol === 'recepcionista' && ['huespedes', 'clientes', 'reservas'].includes(modulo)) {
+      if ((rol === 'recepcionista' || Number(req.sesion?.idRolesFK) === 3) && ['huespedes', 'clientes', 'reservas'].includes(modulo)) {
         return next();
-      };
+      }
       const permisos = permisosParseados(rows[0].Permisos);
       const permitidos = alias[modulo] || [modulo];
       if (permisos.some(p => p === '*' || p === 'todos' || p === 'todoslosmodulos' || permitidos.includes(p))) return next();
@@ -441,6 +451,7 @@ function exigirModulo(modulo) {
     }
   };
 }
+
 function exigirAlgunoDeModulos(...modulos) {
   const mapa = {
     roles: ['roles', 'gestionroles', 'gestionderoles', 'administracionderoles'], usuarios: ['usuarios', 'gestionusuarios', 'gestiondeusuarios'],
@@ -456,6 +467,9 @@ function exigirAlgunoDeModulos(...modulos) {
       const rol = normalizarPermiso(rows[0].nomRol);
       if (Number(req.sesion?.idRolesFK) === 1 || ['superadmin', 'gerente'].includes(rol)) return next();
       if (rol === 'administrador' || rol === 'admin') return next();
+      if ((rol === 'recepcionista' || Number(req.sesion?.idRolesFK) === 3) && modulos.some(m => ['huespedes', 'clientes', 'reservas'].includes(m))) {
+        return next();
+      }
       const permisos = permisosParseados(rows[0].Permisos);
       const permitidos = modulos.flatMap(m => mapa[m] || [m]);
       if (permisos.some(p => p === '*' || p === 'todos' || p === 'todoslosmodulos' || permitidos.includes(p))) return next();
@@ -489,7 +503,6 @@ app.use('/api/clientes', exigirToken, async (req, res, next) => {
 app.use('/api/huespedes', exigirToken, exigirModulo('huespedes'));
 app.use('/api/proveedores', exigirToken, exigirModulo('proveedores'));
 app.use('/api/reservas', exigirToken, (req, res, next) => {
-  // La ruta de reserva pública autenticada está reservada a huéspedes; las demás requieren permiso de módulo.
   if (req.method === 'POST' && req.path === '/cliente') {
     db.query('SELECT nomRol, Estado FROM roles WHERE idRoles = ? LIMIT 1', [req.sesion?.idRolesFK]).then(([rows]) => {
       if (!rows.length || Number(rows[0].Estado) !== 1 || normalizarPermiso(rows[0].nomRol) !== 'cliente') return res.status(403).json({ mensaje: 'Para reservar desde la página pública necesitas una cuenta de huésped.' });
@@ -503,8 +516,6 @@ app.use('/api/reservas', exigirToken, (req, res, next) => {
 // ==========================================
 // RUTAS DE ROLES
 // ==========================================
-
-// Opciones mínimas de roles para los formularios de usuarios. No expone los permisos completos.
 app.get('/api/opciones-roles', exigirToken, exigirModulo('usuarios'), async (req, res) => {
   try {
     const [rows] = await db.query("SELECT idRoles, nomRol FROM roles WHERE Estado = 1 ORDER BY nomRol");
@@ -583,7 +594,6 @@ app.delete('/api/roles/:id', exigirToken, exigirModulo('roles'), async (req, res
 // ==========================================
 // RUTAS DE USUARIOS
 // ==========================================
-
 app.get('/api/usuarios', exigirToken, exigirModulo('usuarios'), async (req, res) => {
   try {
     const query = `
@@ -636,7 +646,7 @@ app.post('/api/usuarios', exigirToken, exigirModulo('usuarios'), async (req, res
     let correoEnviado=true;
     try{await mailer.sendMail({from:process.env.SMTP_FROM||process.env.SMTP_USER,to:Email.trim(),
       subject:'Bienvenido a Hotel Lunaria: crea tu contraseña',
-      text:`Hola ${Nombre.trim()},\\nSe creó tu cuenta de Hotel Lunaria. Crea tu propia contraseña con este enlace seguro (válido por 30 minutos): ${link}`});}
+      text:`Hola ${Nombre.trim()},\nSe creó tu cuenta de Hotel Lunaria. Crea tu propia contraseña con este enlace seguro (válido por 30 minutos): ${link}`});}
     catch(mailError){correoEnviado=false;console.error('No se pudo enviar enlace inicial:',mailError);}
     res.status(201).json({idUsuarios:result.insertId,Nombre:Nombre.trim(),Email:Email.trim(),Telefono,Estado:estadoValue,mensaje:correoEnviado?'Usuario creado. Se envió un enlace seguro para que configure su propia contraseña.':'Usuario creado, pero el correo no pudo enviarse. Solicita un nuevo restablecimiento desde Gerencia.',correoEnviado});
   }catch(error){
@@ -673,7 +683,6 @@ app.delete('/api/usuarios/:id', exigirToken, exigirModulo('usuarios'), async (re
 // ==========================================
 // RUTAS DE HABITACIONES
 // ==========================================
-
 app.get('/api/habitaciones/unidades', async (req, res) => {
   const { llegada, salida, idSedeFK } = req.query;
   const fechasValidas = llegada && salida && salida > llegada;
@@ -698,9 +707,6 @@ app.get('/api/habitaciones/unidades', async (req, res) => {
                  FROM reservas_has_unidades ru
                  JOIN reservas r ON r.idReservas = ru.idReservasFK
                  WHERE ru.idUnidadFK = u.idUnidad
-                   -- Sin fechas de consulta, muestra como no disponible cualquier unidad
-                   -- con una reserva confirmada vigente o futura. Si se envía un rango,
-                   -- comprueba el cruce exacto de fechas.
                    AND r.fechaInicio < COALESCE(?, '9999-12-31')
                    AND r.fechaFin > COALESCE(?, CURDATE())
                    AND LOWER(COALESCE(r.estado,'pendiente')) IN ('confirmada','completada')
@@ -720,8 +726,6 @@ app.get('/api/habitaciones/unidades', async (req, res) => {
   }
 });
 
-// Permite poner una habitación física en mantenimiento o devolverla a disponible.
-// No se permite bloquear una unidad que ya tenga reservas vigentes o futuras.
 app.patch('/api/habitaciones/unidades/:id/estado', exigirToken, exigirModulo('habitaciones'), async (req, res) => {
   const { id } = req.params;
   const { estado } = req.body || {};
@@ -830,7 +834,6 @@ app.delete('/api/habitaciones/:id', exigirToken, exigirModulo('habitaciones'), a
 // ==========================================
 // RUTAS DE SERVICIOS
 // ==========================================
-
 app.get('/api/servicios', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT idServicios, nombre, precio, estado, imagen FROM servicios');
@@ -901,11 +904,8 @@ app.delete('/api/servicios/:id', exigirToken, exigirModulo('servicios'), async (
 // ==========================================
 // RUTAS DE PAQUETES
 // ==========================================
-
 app.get('/api/paquetes', async (req, res) => {
   try {
-    // Consultar paquetes y servicios incluidos por separado evita depender de
-    // GROUP_CONCAT (límites de longitud, GROUP BY y formato devuelto por MySQL).
     const [paquetesRows] = await db.query(`
       SELECT p.idPaquetes, p.nomPaquete, p.tipo, p.descripcion, p.precioPaquete,
              p.imagen, p.estado, p.idHabitacionesFK, p.idSedeFK, s.ciudad, s.nombre AS nombreSede,
@@ -914,7 +914,9 @@ app.get('/api/paquetes', async (req, res) => {
       FROM paquetes p
       LEFT JOIN habitaciones h ON h.idHabitaciones = p.idHabitacionesFK
       LEFT JOIN sedes s ON s.idSedes=p.idSedeFK
-      WHERE (? IS NULL OR p.idSedeFK = ?)\n      ORDER BY p.idPaquetes DESC\n    `, [req.query.idSedeFK || null, req.query.idSedeFK || null]);
+      WHERE (? IS NULL OR p.idSedeFK = ?)
+      ORDER BY p.idPaquetes DESC
+    `, [req.query.idSedeFK || null, req.query.idSedeFK || null]);
 
     const [relacionesRows] = await db.query(`
       SELECT Paquetes_idPaquetes AS idPaquete,
@@ -1012,11 +1014,6 @@ app.delete('/api/paquetes/:id', exigirToken, exigirModulo('paquetes'), async (re
 });
 
 // ==========================================
-// RUTAS DE CLIENTES
-// ==========================================
-
-
-// ==========================================
 // COMENTARIOS Y MENSAJES DE SOPORTE
 // ==========================================
 app.get('/api/comentarios', exigirToken, async (req, res) => {
@@ -1039,6 +1036,7 @@ app.get('/api/comentarios', exigirToken, async (req, res) => {
     res.status(500).json({ mensaje: 'No fue posible consultar los comentarios.' });
   }
 });
+
 app.post('/api/comentarios', exigirToken, async (req, res) => {
   const mensaje = String(req.body?.mensaje || '').trim();
   const clienteObjetivo = Number(req.body?.idClientesFK || req.sesion?.idClientesFK || 0);
@@ -1069,12 +1067,16 @@ app.post('/api/comentarios', exigirToken, async (req, res) => {
   }
 });
 
+// ==========================================
+// RUTAS DE CLIENTES
+// ==========================================
 app.get('/api/clientes/chat', exigirToken, async(req,res)=>{
   const rol=normalizarPermiso(req.sesion.Rol||'');
   if(!['gerente','superadmin','administrador','admin','soporte','soportetecnico','personaldeapoyo'].includes(rol))return res.status(403).json({mensaje:'No tienes acceso a los clientes del chat.'});
   try{const [rows]=await db.query('SELECT idClientes,Nombre,Email,Telefono FROM clientes WHERE Estado=1 ORDER BY Nombre');res.json(rows);}
   catch(e){res.status(500).json({mensaje:'No se pudieron consultar los clientes.'});}
 });
+
 app.get('/api/clientes', exigirToken, exigirModulo('clientes'), async (req, res) => {
   try {
     const [results] = await db.query('SELECT * FROM clientes');
@@ -1111,19 +1113,6 @@ app.put('/api/clientes/:id', exigirToken, exigirModulo('clientes'), async (req, 
 });
 
 app.delete('/api/clientes/:id', exigirToken, exigirModulo('clientes'), bloquearRecepcionista, async (req, res) => {
-
-  function bloquearRecepcionista(req, res, next) {
-  const rol = normalizarPermiso(req.sesion?.Rol || '');
-
-  if (rol === 'recepcionista') {
-    return res.status(403).json({
-      mensaje: 'No tienes permiso para eliminar registros.'
-    });
-  }
-
-  next();
-}
-
   const { id } = req.params;
   try {
     const sql = 'DELETE FROM clientes WHERE idClientes = ?';
@@ -1135,16 +1124,14 @@ app.delete('/api/clientes/:id', exigirToken, exigirModulo('clientes'), bloquearR
   }
 });
 
-
-
-// Asigna números físicos reales dentro de la misma transacción de la reserva.
-// Cada unidad se bloquea y se vuelve a comprobar por fechas para impedir dobles asignaciones.
+// ==========================================
+// LÓGICA DE ASIGNACIÓN DE HABITACIONES
+// ==========================================
 async function asignarUnidadesFisicas(connection, reservaId, grupos, inicio, fin, excluirReservaId = null, idSedeFK = null) {
   if (!inicio || !fin || !(fin > inicio)) throw new Error('Las fechas de la reserva no son válidas.');
   for (const grupo of grupos) {
     const tipoId = Number(grupo.idHabitaciones);
     const cantidad = Math.max(1, Number(grupo.cantidadHabitaciones) || 1);
-    // Mutex por categoría: serializa las asignaciones concurrentes del mismo inventario.
     await connection.query('SELECT idHabitaciones FROM habitaciones WHERE idHabitaciones = ? FOR UPDATE', [tipoId]);
     const [unidades] = await connection.query(`
       SELECT u.idUnidad, u.numeroHabitacion
@@ -1176,8 +1163,6 @@ async function asignarUnidadesFisicas(connection, reservaId, grupos, inicio, fin
 
 async function elegirHabitacionesPorCapacidad(connection, inicio, fin, personas, preferidaId, paqueteId, idSedeFK = null) {
   const huespedes = Math.max(1, Number.parseInt(personas, 10) || 1);
-  
-  // Permitimos que la habitación preferida sea encontrada aunque el idSedeFK difiera o no coincida estrictamente
   const [disponibles] = await connection.query(`
     SELECT h.idHabitaciones, h.tipo, h.capacidad, h.precio, h.idSedeFK,
       (SELECT COUNT(*) FROM habitaciones_unidades u
@@ -1289,16 +1274,12 @@ async function validarDisponibilidadHabitacion(connection, habitacionId, inicio,
 // ==========================================
 // RUTAS DE RESERVAS
 // ==========================================
-
-// Disponibilidad pública: devuelve habitaciones activas que no tienen una reserva solapada.
 app.get('/api/disponibilidad', async (req, res) => {
   const { llegada, salida, personas = 1, idSedeFK } = req.query;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(llegada || '')) || !/^\d{4}-\d{2}-\d{2}$/.test(String(salida || '')) || !(salida > llegada)) {
     return res.status(400).json({ mensaje: 'Selecciona una fecha de llegada y una fecha de salida posterior.' });
   }
   try {
-    // Cada fila activa de habitaciones representa una unidad reservable. Se excluyen
-    // tanto reservas antiguas (FK principal) como todas las habitaciones de reservas múltiples.
     const [rows] = await db.query(`
       SELECT h.idHabitaciones, h.tipo, h.capacidad, h.cantidad,
         (SELECT COUNT(*) FROM habitaciones_unidades u
@@ -1319,13 +1300,10 @@ app.get('/api/disponibilidad', async (req, res) => {
     res.json({ llegada, salida, personas: cantidad, habitaciones: rows });
   } catch (error) {
     console.error('Error consultando disponibilidad:', error);
-    res.status(500).json({ mensaje: 'No se pudo consultar la disponibilidad. Ejecuta la migración de reservas con varias habitaciones y verifica las tablas.' });
+    res.status(500).json({ mensaje: 'No se pudo consultar la disponibilidad.' });
   }
 });
 
-// Registro de una reserva que puede incluir varias habitaciones. El precio y la disponibilidad
-// se recalculan dentro de una transacción; el precio enviado por el navegador nunca se usa.
-// Registro de una reserva que puede incluir varias habitaciones.
 app.post('/api/reservas/cliente', exigirToken, async (req, res) => {
   const {
     idHabitacionesFK,
@@ -1340,7 +1318,6 @@ app.post('/api/reservas/cliente', exigirToken, async (req, res) => {
     comprobantePago = null
   } = req.body || {};
 
-  // IMPORTANTE: debe ser let porque puede cambiar si se selecciona un paquete.
   let idSedeFK = req.body?.idSedeFK ?? null;
 
   if (!['Efectivo', 'Tarjeta', 'Transferencia'].includes(metodoPago)) {
@@ -1374,17 +1351,17 @@ app.post('/api/reservas/cliente', exigirToken, async (req, res) => {
   const connection = await db.getConnection();
 
   let reservationId;
-let emailCliente = '';
-let nombreCliente = '';
-let estadoReserva = 'Pendiente';
-let total = 0;
-let detalleCorreo = {};
-let numerosAsignados = [];
-let serviciosPDF = [];
-let codigoReserva = '';
-let archivoComprobante = null;
-let ciudadSedeReserva = 'Sede principal';
-let paqueteNombre = '';
+  let emailCliente = '';
+  let nombreCliente = '';
+  let estadoReserva = 'Pendiente';
+  let total = 0;
+  let detalleCorreo = {};
+  let numerosAsignados = [];
+  let serviciosPDF = [];
+  let codigoReserva = '';
+  let archivoComprobante = null;
+  let ciudadSedeReserva = 'Sede principal';
+  let paqueteNombre = '';
 
   try {
     await connection.beginTransaction();
@@ -1796,7 +1773,6 @@ let paqueteNombre = '';
       idSedeFK
     );
 
-    // CORRECCIÓN: se consulta también idUnidad para utilizarlo en la respuesta y el correo.
     [numerosAsignados] = await connection.query(`
       SELECT u.idUnidad, u.numeroHabitacion
       FROM reservas_has_unidades ru
@@ -1837,7 +1813,7 @@ let paqueteNombre = '';
     console.error('Error creando reserva de huésped:', error);
 
     return res.status(500).json({
-      mensaje: 'No se pudo registrar la reserva. Verifica que hayas ejecutado la migración de reservas con varias habitaciones.'
+      mensaje: 'No se pudo registrar la reserva.'
     });
 
   } finally {
@@ -1951,7 +1927,6 @@ let paqueteNombre = '';
   });
 });
 
-// Confirmación/rechazo de pagos presenciales o revisión de transferencias.
 app.patch('/api/reservas/:id/pago', exigirToken, exigirModulo('reservas'), async (req, res) => {
   const id = Number(req.params.id);
   const accion = String(req.body?.accion || '').toLowerCase();
@@ -1974,8 +1949,6 @@ app.patch('/api/reservas/:id/pago', exigirToken, exigirModulo('reservas'), async
     if (!rows.length) return res.status(404).json({ mensaje: 'No se encontró la reserva.' });
     const reserva = rows[0];
     const pagoYaConfirmado = String(reserva.estadoPago || '').toLowerCase().includes('pagado') || String(reserva.estadoPago || '').toLowerCase() === 'aprobado';
-    // Si el pago en efectivo/tarjeta ya quedó registrado, permitir igualmente la
-    // confirmación de la reserva y la sincronización de su unidad física.
     if (pagoYaConfirmado && accion === 'rechazar') {
       return res.status(409).json({ mensaje: 'Este pago ya fue confirmado y no puede rechazarse.' });
     }
@@ -1984,8 +1957,6 @@ app.patch('/api/reservas/:id/pago', exigirToken, exigirModulo('reservas'), async
     }
     const estadoPago = accion === 'aprobar' ? 'Pagado' : 'Rechazado';
     const fechaPago = accion === 'aprobar' ? new Date() : null;
-    // Confirmar el pago también sincroniza las unidades físicas. Las reservas antiguas
-    // o creadas por flujos previos pueden no tener filas en reservas_has_unidades.
     const connection = await db.getConnection();
     try {
       await connection.beginTransaction();
@@ -2051,11 +2022,10 @@ app.patch('/api/reservas/:id/pago', exigirToken, exigirModulo('reservas'), async
     return res.json({ mensaje: accion === 'aprobar' ? 'Pago confirmado correctamente.' : 'Pago marcado como rechazado.', estadoPago, emailEnviado });
   } catch (error) {
     console.error('Error gestionando pago:', error);
-    return res.status(500).json({ mensaje: 'No se pudo actualizar el pago. Verifica que exista la columna observacionPago en reservas.' });
+    return res.status(500).json({ mensaje: 'No se pudo actualizar el pago.' });
   }
 });
 
-// Entrega el comprobante de transferencia solo a personal autorizado con sesión válida.
 app.get('/api/reservas/:id/comprobante', exigirToken, exigirModulo('reservas'), async (req, res) => {
   try {
     const idReserva = Number(req.params.id);
@@ -2070,11 +2040,10 @@ app.get('/api/reservas/:id/comprobante', exigirToken, exigirModulo('reservas'), 
       return res.status(404).json({ mensaje: 'Esta reserva no tiene un comprobante de transferencia adjunto.' });
     }
 
-    // La BD puede contener una ruta relativa, una ruta antigua con barras o una ruta absoluta.
     const rutaGuardada = String(rows[0].comprobantePago).trim();
     const nombre = path.basename(rutaGuardada.replace(/\\/g, '/'));
     if (!nombre || nombre === '.' || nombre === '..') {
-      return res.status(404).json({ mensaje: 'La ruta guardada del comprobante no es válida. Solicita que el cliente lo adjunte nuevamente.' });
+      return res.status(404).json({ mensaje: 'La ruta guardada del comprobante no es válida.' });
     }
 
     const posiblesRutas = [
@@ -2090,14 +2059,14 @@ app.get('/api/reservas/:id/comprobante', exigirToken, exigirModulo('reservas'), 
     if (!archivo) {
       console.error(`Comprobante no encontrado para reserva ${idReserva}. Ruta BD: ${rutaGuardada}`);
       return res.status(404).json({
-        mensaje: 'El archivo del comprobante no está en el servidor. La reserva conserva el registro, pero el cliente debe volver a adjuntar el soporte de pago.'
+        mensaje: 'El archivo del comprobante no está en el servidor.'
       });
     }
 
     const extension = path.extname(archivo).toLowerCase();
     const tipos = { '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg' };
     res.setHeader('Content-Type', tipos[extension] || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `inline; filename="${nombre.replace(/["\\\\]/g, '')}"`);
+    res.setHeader('Content-Disposition', `inline; filename="${nombre.replace(/["\\]/g, '')}"`);
     res.setHeader('Cache-Control', 'no-store');
     return res.sendFile(archivo);
   } catch (error) {
@@ -2254,7 +2223,110 @@ app.post('/api/reservas', exigirToken, exigirModulo('reservas'), async (req, res
   } finally { connection.release(); }
 });
 
+// Función auxiliar compartida para cambio rápido de estado de reserva
+async function actualizarEstadoRapidoReserva(req, res) {
+  const id = Number(req.params.id);
+  const estado = String(req.body?.estado || '').trim();
+  const rolActual = normalizarPermiso(req.sesion?.Rol || '');
+
+  if (
+    rolActual === 'recepcionista' &&
+    !['Confirmada', 'Cancelada'].includes(estado)
+  ) {
+    return res.status(403).json({
+      mensaje: 'El recepcionista únicamente puede confirmar o cancelar reservas.'
+    });
+  }
+  if (!Number.isInteger(id) || id <= 0 || !['Pendiente', 'Confirmada', 'Cancelada'].includes(estado)) {
+    return res.status(400).json({ mensaje: 'Estado de reserva no válido.' });
+  }
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [[reserva]] = await connection.query(
+      `SELECT idReservas,idHabitacionesFK,idPaquetesFK,idSedeFK,fechaInicio,fechaFin
+       FROM reservas WHERE idReservas=? LIMIT 1 FOR UPDATE`, [id]
+    );
+    if (!reserva) throw new Error('No se encontró la reserva.');
+
+    let sedeAsignacionFinal = reserva.idSedeFK || null;
+    if (estado === 'Confirmada') {
+      let grupos = [];
+      let sedeAsignacion = sedeAsignacionFinal;
+      const [gruposGuardados] = await connection.query(
+        `SELECT idHabitacionesFK,cantidadHabitaciones
+         FROM reservas_has_habitaciones WHERE idReservasFK=? ORDER BY idHabitacionesFK`, [id]
+      );
+      grupos = gruposGuardados.map(g => ({
+        idHabitaciones: Number(g.idHabitacionesFK),
+        cantidadHabitaciones: Math.max(1, Number(g.cantidadHabitaciones) || 1)
+      }));
+
+      let habitacionIncluida = Number(reserva.idHabitacionesFK) || null;
+      if (reserva.idPaquetesFK) {
+        const [[paquete]] = await connection.query(
+          'SELECT idHabitacionesFK,idSedeFK FROM paquetes WHERE idPaquetes=? LIMIT 1', [reserva.idPaquetesFK]
+        );
+        if (!paquete?.idHabitacionesFK) throw new Error('El paquete no tiene una habitación incluida configurada.');
+        habitacionIncluida = Number(paquete.idHabitacionesFK);
+        sedeAsignacion = sedeAsignacion || paquete.idSedeFK || null;
+        sedeAsignacionFinal = sedeAsignacion;
+      }
+      if (habitacionIncluida && !grupos.some(g => g.idHabitaciones === habitacionIncluida)) {
+        grupos.unshift({ idHabitaciones: habitacionIncluida, cantidadHabitaciones: 1, tipo: 'Habitación incluida en el paquete' });
+      }
+      if (!grupos.length && habitacionIncluida) {
+        grupos = [{ idHabitaciones: habitacionIncluida, cantidadHabitaciones: 1 }];
+      }
+      if (!grupos.length) throw new Error('La reserva no tiene habitaciones asignadas.');
+
+      await connection.query('DELETE FROM reservas_has_unidades WHERE idReservasFK=?', [id]);
+      await asignarUnidadesFisicas(
+        connection, id, grupos, reserva.fechaInicio, reserva.fechaFin, id, sedeAsignacion
+      );
+      for (const grupo of grupos) {
+        const [yaRegistrado] = await connection.query(
+          'SELECT idReservasFK FROM reservas_has_habitaciones WHERE idReservasFK=? AND idHabitacionesFK=? LIMIT 1',
+          [id, grupo.idHabitaciones]
+        );
+        if (!yaRegistrado.length) {
+          await connection.query(
+            `INSERT INTO reservas_has_habitaciones
+             (idReservasFK,idHabitacionesFK,personasAsignadas,cantidadHabitaciones,esHabitacionIncluida,cargoPorNoche)
+             VALUES (?,?,1,?, ?,0)`,
+            [id, grupo.idHabitaciones, grupo.cantidadHabitaciones,
+             reserva.idPaquetesFK && grupo.idHabitaciones === habitacionIncluida ? 1 : 0]
+          );
+        }
+      }
+    }
+
+    await connection.query('UPDATE reservas SET estado=?, idSedeFK=COALESCE(idSedeFK, ?) WHERE idReservas=?', [estado, estado === 'Confirmada' ? sedeAsignacionFinal : null, id]);
+    await connection.commit();
+    return res.json({
+      mensaje: estado === 'Confirmada'
+        ? 'Reserva confirmada. Las habitaciones asignadas quedaron bloqueadas en el inventario; el pago conserva su estado actual.'
+        : `Estado de la reserva actualizado a ${estado}.`,
+      estado
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error al actualizar el estado de la reserva:', error);
+    return res.status(409).json({ mensaje: error.message || 'No se pudo actualizar el estado de la reserva.' });
+  } finally {
+    connection.release();
+  }
+}
+
+app.patch('/api/reservas/:id/estado', exigirToken, exigirModulo('reservas'), actualizarEstadoRapidoReserva);
+
 app.put('/api/reservas/:id', exigirToken, exigirModulo('reservas'), async (req, res) => {
+  // Si solo se envía el cambio de estado (sin idClientesFK), delegar a la actualización rápida de estado
+  if (req.body && req.body.estado && !req.body.idClientesFK) {
+    return actualizarEstadoRapidoReserva(req, res);
+  }
+
   let { id } = req.params;
   const {
     idClientesFK, idHabitacionesFK, idPaquetesFK, descripcion,
@@ -2339,104 +2411,6 @@ app.put('/api/reservas/:id', exigirToken, exigirModulo('reservas'), async (req, 
   } finally { connection.release(); }
 });
 
-// Confirma la reserva y bloquea sus unidades físicas sin modificar el estado del pago.
-app.put('/api/reservas/:id', exigirToken, exigirModulo('reservas'), bloquearRecepcionista, async (req, res) => {
-  const id = Number(req.params.id);
-  const estado = String(req.body?.estado || '').trim();
-  const rolActual = normalizarPermiso(req.sesion?.Rol || '');
-
-  if (
-    rolActual === 'recepcionista' &&
-    !['Confirmada', 'Cancelada'].includes(estado)
-  ) {
-    return res.status(403).json({
-      mensaje: 'El recepcionista únicamente puede confirmar o cancelar reservas.'
-    });
-  }
-  if (!Number.isInteger(id) || id <= 0 || !['Pendiente', 'Confirmada', 'Cancelada'].includes(estado)) {
-    return res.status(400).json({ mensaje: 'Estado de reserva no válido.' });
-  }
-
-  const connection = await db.getConnection();
-  try {
-    await connection.beginTransaction();
-    const [[reserva]] = await connection.query(
-      `SELECT idReservas,idHabitacionesFK,idPaquetesFK,idSedeFK,fechaInicio,fechaFin
-       FROM reservas WHERE idReservas=? LIMIT 1 FOR UPDATE`, [id]
-    );
-    if (!reserva) throw new Error('No se encontró la reserva.');
-
-    let sedeAsignacionFinal = reserva.idSedeFK || null;
-    if (estado === 'Confirmada') {
-      let grupos = [];
-      let sedeAsignacion = sedeAsignacionFinal;
-      const [gruposGuardados] = await connection.query(
-        `SELECT idHabitacionesFK,cantidadHabitaciones
-         FROM reservas_has_habitaciones WHERE idReservasFK=? ORDER BY idHabitacionesFK`, [id]
-      );
-      grupos = gruposGuardados.map(g => ({
-        idHabitaciones: Number(g.idHabitacionesFK),
-        cantidadHabitaciones: Math.max(1, Number(g.cantidadHabitaciones) || 1)
-      }));
-
-      let habitacionIncluida = Number(reserva.idHabitacionesFK) || null;
-      if (reserva.idPaquetesFK) {
-        const [[paquete]] = await connection.query(
-          'SELECT idHabitacionesFK,idSedeFK FROM paquetes WHERE idPaquetes=? LIMIT 1', [reserva.idPaquetesFK]
-        );
-        if (!paquete?.idHabitacionesFK) throw new Error('El paquete no tiene una habitación incluida configurada.');
-        habitacionIncluida = Number(paquete.idHabitacionesFK);
-        sedeAsignacion = sedeAsignacion || paquete.idSedeFK || null;
-        sedeAsignacionFinal = sedeAsignacion;
-      }
-      if (habitacionIncluida && !grupos.some(g => g.idHabitaciones === habitacionIncluida)) {
-        grupos.unshift({ idHabitaciones: habitacionIncluida, cantidadHabitaciones: 1, tipo: 'Habitación incluida en el paquete' });
-      }
-      if (!grupos.length && habitacionIncluida) {
-        grupos = [{ idHabitaciones: habitacionIncluida, cantidadHabitaciones: 1 }];
-      }
-      if (!grupos.length) throw new Error('La reserva no tiene habitaciones asignadas.');
-
-      // Reasigna al confirmar para detectar unidades que hayan pasado a mantenimiento
-      // o que hayan sido ocupadas por otra reserva desde la asignación inicial.
-      await connection.query('DELETE FROM reservas_has_unidades WHERE idReservasFK=?', [id]);
-      await asignarUnidadesFisicas(
-        connection, id, grupos, reserva.fechaInicio, reserva.fechaFin, id, sedeAsignacion
-      );
-      for (const grupo of grupos) {
-        const [yaRegistrado] = await connection.query(
-          'SELECT idReservasFK FROM reservas_has_habitaciones WHERE idReservasFK=? AND idHabitacionesFK=? LIMIT 1',
-          [id, grupo.idHabitaciones]
-        );
-        if (!yaRegistrado.length) {
-          await connection.query(
-            `INSERT INTO reservas_has_habitaciones
-             (idReservasFK,idHabitacionesFK,personasAsignadas,cantidadHabitaciones,esHabitacionIncluida,cargoPorNoche)
-             VALUES (?,?,1,?, ?,0)`,
-            [id, grupo.idHabitaciones, grupo.cantidadHabitaciones,
-             reserva.idPaquetesFK && grupo.idHabitaciones === habitacionIncluida ? 1 : 0]
-          );
-        }
-      }
-    }
-
-    await connection.query('UPDATE reservas SET estado=?, idSedeFK=COALESCE(idSedeFK, ?) WHERE idReservas=?', [estado, estado === 'Confirmada' ? sedeAsignacionFinal : null, id]);
-    await connection.commit();
-    return res.json({
-      mensaje: estado === 'Confirmada'
-        ? 'Reserva confirmada. Las habitaciones asignadas quedaron bloqueadas en el inventario; el pago conserva su estado actual.'
-        : `Estado de la reserva actualizado a ${estado}.`,
-      estado
-    });
-  } catch (error) {
-    await connection.rollback();
-    console.error('Error al actualizar el estado de la reserva:', error);
-    return res.status(409).json({ mensaje: error.message || 'No se pudo actualizar el estado de la reserva.' });
-  } finally {
-    connection.release();
-  }
-});
-
 app.delete('/api/reservas/:id', exigirToken, exigirModulo('reservas'), bloquearRecepcionista, async (req, res) => {
   const { id } = req.params;
   const connection = await db.getConnection();
@@ -2452,7 +2426,6 @@ app.delete('/api/reservas/:id', exigirToken, exigirModulo('reservas'), bloquearR
       return res.status(404).json({ error: 'Reserva no encontrada' });
     }
 
-    // Eliminar primero las relaciones dependientes para permitir borrar cualquier reserva.
     await connection.query('DELETE FROM reservas_has_unidades WHERE idReservasFK = ?', [id]);
     await connection.query(
       'DELETE FROM reservas_has_servicios WHERE Reservas_idReservas = ?',
@@ -2484,17 +2457,17 @@ app.delete('/api/reservas/:id', exigirToken, exigirModulo('reservas'), bloquearR
 // ==========================================
 // RUTAS DE HUÉSPEDES
 // ==========================================
-
 app.get('/api/huespedes/clientes', exigirToken, async(req,res)=>{
   const rol=normalizarPermiso(req.sesion.Rol||'');
-  if(!['gerente','superadmin','administrador','admin','recepcionista'].includes(rol))return res.status(403).json({mensaje:'No tienes permiso para consultar los clientes asociados.'});
+  if(!['gerente','superadmin','administrador','admin','recepcionista'].includes(rol) && Number(req.sesion.idRolesFK) !== 3) return res.status(403).json({mensaje:'No tienes permiso para consultar los clientes asociados.'});
   try{const [rows]=await db.query('SELECT idClientes,Nombre,Email FROM clientes WHERE Estado=1 ORDER BY Nombre');res.json(rows);}
   catch(e){res.status(500).json({mensaje:'No se pudieron cargar los clientes.'});}
 });
+
 app.get('/api/huespedes', exigirToken, async (req, res) => {
   try {
     const rolSesion = normalizarPermiso(req.sesion.Rol || '');
-    if (!['gerente','superadmin','administrador','admin','recepcionista'].includes(rolSesion)) return res.status(403).json({error:'No tienes acceso al módulo de huéspedes.'});
+    if (!['gerente','superadmin','administrador','admin','recepcionista'].includes(rolSesion) && Number(req.sesion.idRolesFK) !== 3) return res.status(403).json({error:'No tienes acceso al módulo de huéspedes.'});
     const sql = `
       SELECT 
         h.idHuespedes,
@@ -2514,7 +2487,7 @@ app.get('/api/huespedes', exigirToken, async (req, res) => {
 
 app.post('/api/huespedes', exigirToken, async (req, res) => {
   const rolSesion = normalizarPermiso(req.sesion.Rol || '');
-  if (!['gerente','superadmin','administrador','admin','recepcionista'].includes(rolSesion)) return res.status(403).json({error:'No tienes permiso para crear hospedajes.'});
+  if (!['gerente','superadmin','administrador','admin','recepcionista'].includes(rolSesion) && Number(req.sesion.idRolesFK) !== 3) return res.status(403).json({error:'No tienes permiso para crear hospedajes.'});
   const { Nombre, idClientesFK, fechaFinHospedaje } = req.body;
   if (!fechaFinHospedaje || !/^\d{4}-\d{2}-\d{2}$/.test(String(fechaFinHospedaje))) return res.status(400).json({error:'La fecha de finalización del hospedaje es obligatoria.'});
 
@@ -2540,7 +2513,7 @@ app.post('/api/huespedes', exigirToken, async (req, res) => {
 
 app.put('/api/huespedes/:id', exigirToken, async (req, res) => {
   const rolSesion = normalizarPermiso(req.sesion.Rol || '');
-  if (rolSesion === 'recepcionista' || !['gerente','superadmin','administrador','admin'].includes(rolSesion)) return res.status(403).json({error:'No tienes permiso para editar hospedajes.'});
+  if (rolSesion === 'recepcionista' || Number(req.sesion.idRolesFK) === 3 || !['gerente','superadmin','administrador','admin'].includes(rolSesion)) return res.status(403).json({error:'No tienes permiso para editar hospedajes.'});
   const { id } = req.params;
   const { Nombre, idClientesFK, fechaFinHospedaje } = req.body;
 
@@ -2565,7 +2538,7 @@ app.put('/api/huespedes/:id', exigirToken, async (req, res) => {
 
 app.delete('/api/huespedes/:id', exigirToken, async (req, res) => {
   const rolSesion = normalizarPermiso(req.sesion.Rol || '');
-  if (rolSesion === 'recepcionista' || !['gerente','superadmin','administrador','admin'].includes(rolSesion)) return res.status(403).json({error:'No tienes permiso para eliminar hospedajes.'});
+  if (rolSesion === 'recepcionista' || Number(req.sesion.idRolesFK) === 3 || !['gerente','superadmin','administrador','admin'].includes(rolSesion)) return res.status(403).json({error:'No tienes permiso para eliminar hospedajes.'});
   const { id } = req.params;
   try {
     const sql = 'DELETE FROM huespedes WHERE idHuespedes = ?';
@@ -2582,10 +2555,19 @@ app.delete('/api/huespedes/:id', exigirToken, async (req, res) => {
   }
 });
 
+app.patch('/api/huespedes/:id/completar', exigirToken, async(req,res)=>{
+  const rol=normalizarPermiso(req.sesion.Rol||'');
+  if(!['gerente','superadmin','administrador','admin','recepcionista'].includes(rol) && Number(req.sesion.idRolesFK) !== 3) return res.status(403).json({mensaje:'No tienes permiso para completar hospedajes.'});
+  try{
+    const [r]=await db.query("UPDATE huespedes SET estadoHospedaje='Completado' WHERE idHuespedes=? AND estadoHospedaje='En curso' AND fechaFinHospedaje<=CURDATE()",[req.params.id]);
+    if(!r.affectedRows)return res.status(409).json({mensaje:'El hospedaje solo se puede completar cuando la fecha de salida ya haya llegado.'});
+    res.json({mensaje:'Hospedaje marcado como completado.'});
+  }catch(e){res.status(500).json({mensaje:'No se pudo completar el hospedaje.'});}
+});
 
-
-
-
+// ==========================================
+// OTROS ENDPOINTS Y REPORTES
+// ==========================================
 app.get('/api/mis-reservas', exigirToken, async(req,res)=>{
   if(!req.sesion.idClientesFK)return res.status(403).json({mensaje:'Esta cuenta no está vinculada a un cliente.'});
   try{
@@ -2595,7 +2577,7 @@ app.get('/api/mis-reservas', exigirToken, async(req,res)=>{
     res.json(rows);
   }catch(e){res.status(500).json({mensaje:'No se pudieron consultar tus reservas.'});}
 });
-// Configuración pública: la cuenta bancaria se muestra solo si el hotel la configuró.
+
 app.get('/api/configuracion/publica', async(req,res)=>{
   try {
     const [rows]=await db.query("SELECT clave,valor FROM configuracion_hotel WHERE clave IN ('cuenta_transferencia','titular_transferencia','banco_transferencia','iva_porcentaje','telefono_contacto','correo_contacto','direccion_contacto')");
@@ -2603,15 +2585,15 @@ app.get('/api/configuracion/publica', async(req,res)=>{
   } catch(e){res.status(500).json({mensaje:'No se pudo consultar la configuración.'});}
 });
 
-// Galería de habitaciones.
 app.get('/api/habitaciones/:id/imagenes', async(req,res)=>{
   try {
     const [rows]=await db.query('SELECT idImagen,ruta,orden FROM imagenes_habitaciones WHERE idHabitacionesFK=? ORDER BY orden,idImagen',[req.params.id]);
     res.json(rows);
   }catch(e){res.status(500).json({mensaje:'No se pudieron consultar las imágenes.'});}
 });
+
 app.post('/api/habitaciones/:id/imagenes', exigirToken, exigirModulo('habitaciones'), async(req,res)=>{
-  const id=Number(req.params.id), data=String(req.body?.data||''), nombre=String(req.body?.nombre||'imagen');
+  const id=Number(req.params.id), data=String(req.body?.data||'');
   const m=data.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
   if(!m)return res.status(400).json({mensaje:'La imagen debe ser JPG, PNG o WEBP.'});
   const buffer=Buffer.from(m[2],'base64');
@@ -2627,6 +2609,7 @@ app.post('/api/habitaciones/:id/imagenes', exigirToken, exigirModulo('habitacion
     res.status(201).json({idImagen:r.insertId,ruta});
   }catch(e){console.error('Subir imagen:',e);res.status(500).json({mensaje:'No se pudo guardar la imagen.'});}
 });
+
 app.delete('/api/habitaciones/imagenes/:id', exigirToken, exigirModulo('habitaciones'), async(req,res)=>{
   try{
     const [[img]]=await db.query('SELECT ruta FROM imagenes_habitaciones WHERE idImagen=?',[req.params.id]);
@@ -2638,19 +2621,18 @@ app.delete('/api/habitaciones/imagenes/:id', exigirToken, exigirModulo('habitaci
   }catch(e){res.status(500).json({mensaje:'No se pudo eliminar la imagen.'});}
 });
 
-// -----------------------------------------------------------------------------
-// Funciones y endpoints complementarios (requieren ejecutar migrations_lunaria.sql).
-// -----------------------------------------------------------------------------
 function exigirGerente(req, res, next) {
   const rol = normalizarPermiso(req.sesion?.Rol || '');
   if (Number(req.sesion?.idRolesFK) === 1 || rol === 'gerente' || rol === 'superadmin') return next();
   return res.status(403).json({ mensaje: 'Solo el Gerente (Super Admin) puede realizar esta acción.' });
 }
+
 function exigirPersonal(req, res, next) {
   const rol = normalizarPermiso(req.sesion?.Rol || '');
-  if (['gerente','superadmin','administrador','admin','recepcionista','soporte','soportetecnico','personaldeapoyo'].includes(rol)) return next();
+  if (['gerente','superadmin','administrador','admin','recepcionista','soporte','soportetecnico','personaldeapoyo'].includes(rol) || [1, 2, 3].includes(Number(req.sesion?.idRolesFK))) return next();
   return res.status(403).json({ mensaje: 'No tienes permisos para esta operación.' });
 }
+
 function fechaHoraBogota(fecha, hora='00:00') {
   const f = String(fecha || '').slice(0,10), h = String(hora || '00:00').slice(0,5);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(f) || !/^\d{2}:\d{2}$/.test(h)) return null;
@@ -2659,6 +2641,7 @@ function fechaHoraBogota(fecha, hora='00:00') {
   if(prueba.getUTCFullYear()!==y||prueba.getUTCMonth()!==mo-1||prueba.getUTCDate()!==d||hh>23||mm>59)return null;
   return new Date(`${f}T${h}:00-05:00`);
 }
+
 function validarRangoReserva(fechaInicio, horaLlegada, fechaFin, horaSalida) {
   const entrada = fechaHoraBogota(fechaInicio, horaLlegada);
   const salida = fechaHoraBogota(fechaFin, horaSalida);
@@ -2669,7 +2652,6 @@ function validarRangoReserva(fechaInicio, horaLlegada, fechaFin, horaSalida) {
   return null;
 }
 
-// Cliente cancela únicamente sus reservas; personal puede cancelar reservas de su operación.
 app.patch('/api/reservas/:id/cancelar', exigirToken, async (req, res) => {
   const id = Number(req.params.id);
   const motivo = String(req.body?.motivo || '').trim().slice(0,500);
@@ -2679,11 +2661,11 @@ app.patch('/api/reservas/:id/cancelar', exigirToken, async (req, res) => {
       WHERE r.idReservas=? LIMIT 1`, [id]);
     if (!r) return res.status(404).json({ mensaje: 'Reserva no encontrada.' });
     const rol = normalizarPermiso(req.sesion.Rol || '');
-    const personal = ['gerente','superadmin','administrador','admin', 'recepcionista'].includes(rol);
+    const personal = ['gerente','superadmin','administrador','admin', 'recepcionista'].includes(rol) || [1, 2, 3].includes(Number(req.sesion.idRolesFK));
     if (!personal && Number(r.idClientesFK) !== Number(req.sesion.idClientesFK)) return res.status(403).json({ mensaje: 'No puedes cancelar una reserva que no te pertenece.' });
     if (String(r.estado).toLowerCase() === 'cancelada') return res.json({ mensaje: 'La reserva ya estaba cancelada.' });
     await db.query("UPDATE reservas SET estado='Cancelada', observacionPago=CONCAT(COALESCE(observacionPago,''), ?) WHERE idReservas=?",
-      [motivo ? `\\nCancelación: ${motivo}` : '\\nCancelada por solicitud.', id]);
+      [motivo ? `\nCancelación: ${motivo}` : '\nCancelada por solicitud.', id]);
     const [admins] = await db.query(`SELECT u.idUsuarios FROM usuarios u JOIN roles ro ON ro.idRoles=u.idRolesFK
       WHERE u.Estado=1 AND LOWER(ro.nomRol) IN ('gerente','super admin','superadmin','administrador','admin')`);
     for (const a of admins) await db.query(`INSERT INTO notificaciones (idUsuarioDestinoFK,tipo,titulo,mensaje,idReservaFK)
@@ -2694,7 +2676,7 @@ app.patch('/api/reservas/:id/cancelar', exigirToken, async (req, res) => {
       try {
         await mailer.sendMail({from:process.env.SMTP_FROM||process.env.SMTP_USER,to:r.Email,
           subject:'Hotel Lunaria: confirmación de cancelación',
-          text:`Hola ${r.Nombre || ''},\\nConfirmamos que tu reserva ${id} fue cancelada.\\n${motivo ? `Motivo: ${motivo}\\n` : ''}Si necesitas ayuda, comunícate con nosotros.`});
+          text:`Hola ${r.Nombre || ''},\nConfirmamos que tu reserva ${id} fue cancelada.\n${motivo ? `Motivo: ${motivo}\n` : ''}Si necesitas ayuda, comunícate con nosotros.`});
         correoEnviado = true;
       } catch (e) { console.error('Correo de cancelación:', e); }
     }
@@ -2702,7 +2684,6 @@ app.patch('/api/reservas/:id/cancelar', exigirToken, async (req, res) => {
   } catch (e) { console.error('Cancelar reserva:',e); res.status(500).json({mensaje:'No fue posible cancelar la reserva.'}); }
 });
 
-// Notificaciones del panel y marcado como leídas.
 app.get('/api/notificaciones', exigirToken, exigirPersonal, async (req,res) => {
   try {
     const [rows] = await db.query(`SELECT idNotificacion,tipo,titulo,mensaje,idReservaFK,leida,creadaEn
@@ -2710,12 +2691,14 @@ app.get('/api/notificaciones', exigirToken, exigirPersonal, async (req,res) => {
     res.json(rows);
   } catch(e) { res.status(500).json({mensaje:'No se pudieron consultar las notificaciones.'}); }
 });
+
 app.patch('/api/notificaciones/:id/leida', exigirToken, exigirPersonal, async(req,res)=>{
   try {
     await db.query('UPDATE notificaciones SET leida=1 WHERE idNotificacion=? AND idUsuarioDestinoFK=?',[req.params.id,req.sesion.idUsuarios]);
     res.json({mensaje:'Notificación actualizada.'});
   } catch(e){res.status(500).json({mensaje:'No se pudo actualizar la notificación.'});}
 });
+
 app.delete('/api/notificaciones/:id', exigirToken, exigirPersonal, async(req,res)=>{
   const id=Number(req.params.id);
   if(!Number.isInteger(id)||id<=0) return res.status(400).json({mensaje:'Notificación no válida.'});
@@ -2726,7 +2709,6 @@ app.delete('/api/notificaciones/:id', exigirToken, exigirPersonal, async(req,res
   } catch(e){console.error('Eliminar notificación:',e);res.status(500).json({mensaje:'No se pudo eliminar la notificación.'});}
 });
 
-// Reseñas públicas y creación exclusiva por clientes autenticados.
 app.get('/api/resenas', async(req,res)=>{
   try {
     const [rows]=await db.query(`SELECT x.idResena,x.calificacion,x.titulo,x.comentario,x.fechaCreacion,c.Nombre AS cliente
@@ -2735,6 +2717,7 @@ app.get('/api/resenas', async(req,res)=>{
     res.json(rows);
   } catch(e){res.status(500).json({mensaje:'No se pudieron consultar las reseñas.'});}
 });
+
 app.post('/api/resenas', exigirToken, async(req,res)=>{
   const rol=normalizarPermiso(req.sesion.Rol||'');
   if(rol!=='cliente' || !req.sesion.idClientesFK) return res.status(403).json({mensaje:'Solo los clientes autenticados pueden publicar reseñas.'});
@@ -2746,7 +2729,6 @@ app.post('/api/resenas', exigirToken, async(req,res)=>{
   } catch(e){res.status(500).json({mensaje:'No se pudo guardar la reseña.'});}
 });
 
-// Estadísticas mensuales o anuales, con KPIs globales y detalle filtrable por sede.
 app.get('/api/informes/estadisticas', exigirToken, exigirGerente, async(req,res)=>{
   const periodo=String(req.query.periodo||'mes');
   const valor=String(req.query.valor||'');
@@ -2791,10 +2773,9 @@ app.get('/api/informes/estadisticas', exigirToken, exigirGerente, async(req,res)
       ingresosTotales:ingresosGlobales,subtotalGlobal:Math.round(subtotalGlobal*100)/100,ivaGlobal:Math.round((ingresosGlobales-subtotalGlobal)*100)/100,
       ocupacionPorcentaje:capacidadTotal?Number((nochesTotal/capacidadTotal*100).toFixed(2)):0,
       sedes:detalleCompleto.map(s=>({idSedes:s.idSedes,nombre:s.sede})),porSede,totalGeneralSedes});
-  } catch(e){console.error('Informe estadístico:',e);res.status(500).json({mensaje:'No se pudo generar el informe estadístico. Verifica que las tablas y la configuración de la base de datos estén actualizadas.'});}
+  } catch(e){console.error('Informe estadístico:',e);res.status(500).json({mensaje:'No se pudo generar el informe estadístico.'});}
 });
 
-// Reportes mensuales: accesibles exclusivamente para Gerente/Super Admin.
 app.get('/api/informes/mensual' , exigirToken, exigirGerente, async(req,res)=>{
   const mes=String(req.query.mes||'');
   if(!/^\d{4}-\d{2}$/.test(mes)) return res.status(400).json({mensaje:'Indica el mes con formato AAAA-MM.'});
@@ -2810,7 +2791,6 @@ app.get('/api/informes/mensual' , exigirToken, exigirGerente, async(req,res)=>{
   } catch(e){res.status(500).json({mensaje:'No se pudo generar el informe mensual.'});}
 });
 
-// Solicitud segura de restablecimiento por parte del Gerente: el token solo se envía por correo.
 app.post('/api/usuarios/:id/restablecer-contrasena', exigirToken, exigirGerente, async(req,res)=>{
   const id=Number(req.params.id);
   try {
@@ -2826,12 +2806,13 @@ app.post('/api/usuarios/:id/restablecer-contrasena', exigirToken, exigirGerente,
     const link=`${base.replace(/\/$/,'')}/restablecer-contrasena?token=${token}`;
     await mailer.sendMail({from:process.env.SMTP_FROM||process.env.SMTP_USER,to:u.Email,
       subject:'Hotel Lunaria: restablece tu contraseña',
-      text:`Hola ${u.Nombre},\\nEl gerente solicitó un enlace para que tú mismo crees una nueva contraseña. Abre este enlace (válido por 30 minutos): ${link}\\nSi no esperabas este correo, ignóralo.`});
+      text:`Hola ${u.Nombre},\nEl gerente solicitó un enlace para que tú mismo crees una nueva contraseña. Abre este enlace (válido por 30 minutos): ${link}\nSi no esperabas este correo, ignóralo.`});
     await db.query('INSERT INTO logs_seguridad (idUsuarioActorFK,idUsuarioObjetivoFK,accion,detalle) VALUES (?,?,?,?)',
       [req.sesion.idUsuarios,id,'RESTABLECIMIENTO_SOLICITADO','Se envió enlace seguro por correo.']);
     res.json({mensaje:'Se envió un enlace seguro al correo del usuario. No se mostró ni modificó su contraseña.'});
   } catch(e){console.error('Restablecer clave gerente:',e);res.status(500).json({mensaje:'No se pudo enviar el enlace de restablecimiento.'});}
 });
+
 app.post('/api/auth/restablecer-enlace', async(req,res)=>{
   const token=String(req.body?.token||''), nueva=String(req.body?.nuevaContrasena||'');
   if(!/^[a-f0-9]{64}$/.test(token)||nueva.length<8) return res.status(400).json({mensaje:'Enlace no válido o contraseña demasiado corta (mínimo 8 caracteres).'});
@@ -2845,20 +2826,6 @@ app.post('/api/auth/restablecer-enlace', async(req,res)=>{
       [r.idUsuariosFK,r.idUsuariosFK,'CONTRASENA_RESTABLECIDA','El usuario creó su contraseña mediante enlace seguro.']);
     res.json({mensaje:'Tu contraseña fue creada correctamente. Ya puedes iniciar sesión.'});
   }catch(e){res.status(500).json({mensaje:'No se pudo restablecer la contraseña.'});}
-});
-
-// Compatibilidad: los endpoints antiguos de comentarios se usan como chat. La lista incluye
-// identidad del cliente para que soporte pueda localizar el hilo desde la misma interfaz.
-
-
-app.patch('/api/huespedes/:id/completar', exigirToken, async(req,res)=>{
-  const rol=normalizarPermiso(req.sesion.Rol||'');
-  if(!['gerente','superadmin','administrador','admin','recepcionista'].includes(rol)) return res.status(403).json({mensaje:'No tienes permiso para completar hospedajes.'});
-  try{
-    const [r]=await db.query("UPDATE huespedes SET estadoHospedaje='Completado' WHERE idHuespedes=? AND estadoHospedaje='En curso' AND fechaFinHospedaje<=CURDATE()",[req.params.id]);
-    if(!r.affectedRows)return res.status(409).json({mensaje:'El hospedaje solo se puede completar cuando la fecha de salida ya haya llegado.'});
-    res.json({mensaje:'Hospedaje marcado como completado.'});
-  }catch(e){res.status(500).json({mensaje:'No se pudo completar el hospedaje.'});}
 });
 
 db.query("SELECT valor FROM configuracion_hotel WHERE clave='iva_porcentaje' LIMIT 1").then(([rows])=>{if(rows[0]&&Number.isFinite(Number(rows[0].valor)))ivaPorcentajeActual=Number(rows[0].valor);}).catch(()=>{});
