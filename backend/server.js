@@ -2729,51 +2729,132 @@ app.post('/api/resenas', exigirToken, async(req,res)=>{
   } catch(e){res.status(500).json({mensaje:'No se pudo guardar la reseña.'});}
 });
 
-app.get('/api/informes/estadisticas', exigirToken, exigirGerente, async(req,res)=>{
-  const periodo=String(req.query.periodo||'mes');
-  const valor=String(req.query.valor||'');
-  const sedeId=String(req.query.sedeId||'todas');
+app.get('/api/informes/estadisticas', exigirToken, exigirGerente, async (req, res) => {
+  const periodo = String(req.query.periodo || 'mes');
+  const valor = String(req.query.valor || '');
+  const sedeId = String(req.query.sedeId || 'todas');
   let inicio, fin, etiqueta;
-  if(periodo==='mes' && /^\d{4}-(0[1-9]|1[0-2])$/.test(valor)) {
-    inicio=`${valor}-01`; fin=`${valor}-01`; etiqueta=valor;
-  } else if(periodo==='anio' && /^\d{4}$/.test(valor)) {
-    inicio=`${valor}-01-01`; fin=`${String(Number(valor)+1)}-01-01`; etiqueta=valor;
-  } else return res.status(400).json({mensaje:'Selecciona un mes (AAAA-MM) o un año (AAAA) válido.'});
-  if(sedeId!=='todas' && !/^\d+$/.test(sedeId)) return res.status(400).json({mensaje:'La sede seleccionada no es válida.'});
+
+  if (periodo === 'mes' && /^\d{4}-(0[1-9]|1[0-2])$/.test(valor)) {
+    const [anio, mes] = valor.split('-').map(Number);
+    inicio = `${valor}-01`;
+    const siguienteAnio = mes === 12 ? anio + 1 : anio;
+    const siguienteMes = mes === 12 ? 1 : mes + 1;
+    fin = `${siguienteAnio}-${String(siguienteMes).padStart(2, '0')}-01`;
+    etiqueta = valor;
+  } else if (periodo === 'anio' && /^\d{4}$/.test(valor)) {
+    inicio = `${valor}-01-01`;
+    fin = `${Number(valor) + 1}-01-01`;
+    etiqueta = valor;
+  } else {
+    return res.status(400).json({ mensaje: 'Selecciona un mes (AAAA-MM) o un año (AAAA) válido.' });
+  }
+
+  if (sedeId !== 'todas' && !/^\d+$/.test(sedeId)) {
+    return res.status(400).json({ mensaje: 'La sede seleccionada no es válida.' });
+  }
+
   try {
-    const ivaPorcentaje=Number.isFinite(Number(ivaPorcentajeActual))?Number(ivaPorcentajeActual):19;
-    const [globalRows]=await db.query(`SELECT COUNT(*) AS totalReservas,
-      COALESCE(SUM(CASE WHEN LOWER(estado)='cancelada' THEN 1 ELSE 0 END),0) AS canceladas,
-      COALESCE(SUM(CASE WHEN LOWER(estado) IN ('confirmada','completada') THEN 1 ELSE 0 END),0) AS confirmadas,
-      COALESCE(SUM(CASE WHEN LOWER(estado)<>'cancelada' THEN total ELSE 0 END),0) AS ingresosTotales
-      FROM reservas WHERE fechaInicio>=? AND fechaInicio<?`,[inicio,fin]);
-    const [sedes]=await db.query(`SELECT s.idSedes,s.nombre AS sede,
-      (SELECT COUNT(*) FROM reservas r WHERE r.idSedeFK=s.idSedes AND r.fechaInicio>=? AND r.fechaInicio<?) AS reservas,
-      (SELECT COALESCE(SUM(CASE WHEN LOWER(r.estado)<>'cancelada' THEN r.total ELSE 0 END),0) FROM reservas r WHERE r.idSedeFK=s.idSedes AND r.fechaInicio>=? AND r.fechaInicio<?) AS ingresosTotales,
-      (SELECT COALESCE(SUM(GREATEST(0,DATEDIFF(LEAST(r.fechaFin,?),GREATEST(r.fechaInicio,?))) *
-        COALESCE((SELECT SUM(rhh.cantidadHabitaciones) FROM reservas_has_habitaciones rhh WHERE rhh.idReservasFK=r.idReservas),1)),0)
-       FROM reservas r WHERE r.idSedeFK=s.idSedes AND LOWER(r.estado) IN ('confirmada','completada') AND r.fechaInicio<? AND r.fechaFin>?) AS nochesOcupadas,
-      (SELECT COALESCE(SUM(h.cantidad),0) FROM habitaciones h WHERE h.idSedeFK=s.idSedes AND h.estado=1) AS habitacionesDisponibles
-      FROM sedes s WHERE s.estado=1 ORDER BY s.nombre`,[inicio,fin,inicio,fin,fin,inicio,fin,inicio]);
-    const dias=Math.max(1,Math.round((new Date(fin+'T00:00:00Z')-new Date(inicio+'T00:00:00Z'))/86400000));
-    const detalleCompleto=sedes.map(s=>{
-      const ingresos=Number(s.ingresosTotales||0);
-      const subtotal=ingresos/(1+ivaPorcentaje/100);
-      return {...s,ingresosTotales:ingresos,subtotal:Math.round(subtotal*100)/100,iva:Math.round((ingresos-subtotal)*100)/100,
-        reservas:Number(s.reservas||0),ocupacionPorcentaje:s.habitacionesDisponibles?Number((Number(s.nochesOcupadas||0)/(Number(s.habitacionesDisponibles)*dias)*100).toFixed(2)):0};
+    const ivaPorcentaje = Number.isFinite(Number(ivaPorcentajeActual)) ? Number(ivaPorcentajeActual) : 19;
+
+    const [globalRows] = await db.query(`
+      SELECT
+        COUNT(*) AS totalReservas,
+        COALESCE(SUM(CASE WHEN LOWER(estado) = 'cancelada' THEN 1 ELSE 0 END), 0) AS canceladas,
+        COALESCE(SUM(CASE WHEN LOWER(estado) IN ('confirmada', 'completada') THEN 1 ELSE 0 END), 0) AS confirmadas,
+        COALESCE(SUM(CASE WHEN LOWER(COALESCE(estado, '')) <> 'cancelada' THEN total ELSE 0 END), 0) AS ingresosTotales
+      FROM reservas
+      WHERE fechaInicio >= ? AND fechaInicio < ?
+    `, [inicio, fin]);
+
+    const [sedes] = await db.query(`
+      SELECT
+        s.idSedes,
+        s.nombre AS sede,
+        (
+          SELECT COUNT(*)
+          FROM reservas r
+          WHERE r.idSedeFK = s.idSedes
+            AND r.fechaInicio >= ? AND r.fechaInicio < ?
+        ) AS reservas,
+        (
+          SELECT COALESCE(SUM(CASE WHEN LOWER(COALESCE(r.estado, '')) <> 'cancelada' THEN r.total ELSE 0 END), 0)
+          FROM reservas r
+          WHERE r.idSedeFK = s.idSedes
+            AND r.fechaInicio >= ? AND r.fechaInicio < ?
+        ) AS ingresosTotales,
+        (
+          SELECT COALESCE(SUM(
+            GREATEST(0, DATEDIFF(LEAST(r.fechaFin, ?), GREATEST(r.fechaInicio, ?))) *
+            COALESCE((SELECT SUM(rhh.cantidadHabitaciones) FROM reservas_has_habitaciones rhh WHERE rhh.idReservasFK = r.idReservas), 1)
+          ), 0)
+          FROM reservas r
+          WHERE r.idSedeFK = s.idSedes
+            AND LOWER(COALESCE(r.estado, '')) IN ('confirmada', 'completada')
+            AND r.fechaInicio < ? AND r.fechaFin > ?
+        ) AS nochesOcupadas,
+        (
+          SELECT COALESCE(SUM(h.cantidad), 0)
+          FROM habitaciones h
+          WHERE h.idSedeFK = s.idSedes AND h.estado = 1
+        ) AS habitacionesDisponibles
+      FROM sedes s
+      WHERE s.estado = 1
+      ORDER BY s.nombre
+    `, [inicio, fin, inicio, fin, fin, inicio, fin, inicio]);
+
+    const dias = Math.max(1, Math.round((new Date(fin + 'T00:00:00Z') - new Date(inicio + 'T00:00:00Z')) / 86400000));
+
+    const detalleCompleto = sedes.map(s => {
+      const ingresos = Number(s.ingresosTotales || 0);
+      const subtotal = ingresos / (1 + ivaPorcentaje / 100);
+      return {
+        ...s,
+        ingresosTotales: ingresos,
+        subtotal: Math.round(subtotal * 100) / 100,
+        iva: Math.round((ingresos - subtotal) * 100) / 100,
+        reservas: Number(s.reservas || 0),
+        ocupacionPorcentaje: s.habitacionesDisponibles
+          ? Number((Number(s.nochesOcupadas || 0) / (Number(s.habitacionesDisponibles) * dias) * 100).toFixed(2))
+          : 0
+      };
     });
-    const capacidadTotal=detalleCompleto.reduce((a,s)=>a+Number(s.habitacionesDisponibles||0)*dias,0);
-    const nochesTotal=detalleCompleto.reduce((a,s)=>a+Number(s.nochesOcupadas||0),0);
-    const ingresosGlobales=Number(globalRows[0]?.ingresosTotales||0);
-    const subtotalGlobal=ingresosGlobales/(1+ivaPorcentaje/100);
-    const porSede=sedeId==='todas'?detalleCompleto:detalleCompleto.filter(s=>String(s.idSedes)===sedeId);
-    const totalGeneralSedes=detalleCompleto.reduce((a,s)=>({reservas:a.reservas+s.reservas,subtotal:a.subtotal+s.subtotal,iva:a.iva+s.iva,ingresosTotales:a.ingresosTotales+s.ingresosTotales}),{reservas:0,subtotal:0,iva:0,ingresosTotales:0});
-    res.json({periodo,valor:etiqueta,ivaPorcentaje,
-      totalReservas:Number(globalRows[0]?.totalReservas||0),confirmadas:Number(globalRows[0]?.confirmadas||0),canceladas:Number(globalRows[0]?.canceladas||0),
-      ingresosTotales:ingresosGlobales,subtotalGlobal:Math.round(subtotalGlobal*100)/100,ivaGlobal:Math.round((ingresosGlobales-subtotalGlobal)*100)/100,
-      ocupacionPorcentaje:capacidadTotal?Number((nochesTotal/capacidadTotal*100).toFixed(2)):0,
-      sedes:detalleCompleto.map(s=>({idSedes:s.idSedes,nombre:s.sede})),porSede,totalGeneralSedes});
-  } catch(e){console.error('Informe estadístico:',e);res.status(500).json({mensaje:'No se pudo generar el informe estadístico.'});}
+
+    const capacidadTotal = detalleCompleto.reduce((a, s) => a + Number(s.habitacionesDisponibles || 0) * dias, 0);
+    const nochesTotal = detalleCompleto.reduce((a, s) => a + Number(s.nochesOcupadas || 0), 0);
+    const ingresosGlobales = Number(globalRows[0]?.ingresosTotales || 0);
+    const subtotalGlobal = ingresosGlobales / (1 + ivaPorcentaje / 100);
+    const porSede = sedeId === 'todas'
+      ? detalleCompleto
+      : detalleCompleto.filter(s => String(s.idSedes) === sedeId);
+
+    const totalGeneralSedes = detalleCompleto.reduce((a, s) => ({
+      reservas: a.reservas + s.reservas,
+      subtotal: a.subtotal + s.subtotal,
+      iva: a.iva + s.iva,
+      ingresosTotales: a.ingresosTotales + s.ingresosTotales
+    }), { reservas: 0, subtotal: 0, ivа: 0, ingresosTotales: 0 });
+    totalGeneralSedes.iva = detalleCompleto.reduce((a, s) => a + s.iva, 0);
+
+    res.json({
+      periodo,
+      valor: etiqueta,
+      ivaPorcentaje,
+      totalReservas: Number(globalRows[0]?.totalReservas || 0),
+      confirmadas: Number(globalRows[0]?.confirmadas || 0),
+      canceladas: Number(globalRows[0]?.canceladas || 0),
+      ingresosTotales: ingresosGlobales,
+      subtotalGlobal: Math.round(subtotalGlobal * 100) / 100,
+      ivaGlobal: Math.round((ingresosGlobales - subtotalGlobal) * 100) / 100,
+      ocupacionPorcentaje: capacidadTotal ? Number((nochesTotal / capacidadTotal * 100).toFixed(2)) : 0,
+      sedes: detalleCompleto.map(s => ({ idSedes: s.idSedes, nombre: s.sede })),
+      porSede,
+      totalGeneralSedes
+    });
+  } catch (e) {
+    console.error('Informe estadístico:', e);
+    res.status(500).json({ mensaje: 'No se pudo generar el informe estadístico.' });
+  }
 });
 
 app.get('/api/informes/mensual' , exigirToken, exigirGerente, async(req,res)=>{
