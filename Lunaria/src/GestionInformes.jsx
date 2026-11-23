@@ -6,15 +6,40 @@ export default function GestionInformes({sesion}){
  const [valor,setValor]=useState(`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`);
  const [sedeId,setSedeId]=useState('todas');
  const [sedes,setSedes]=useState([]);
- const [datos,setDatos]=useState(null),[error,setError]=useState(''),[cargando,setCargando]=useState(false);
+ const [datos,setDatos]=useState(null),[error,setError]=useState(''),[cargando,setCargando]=useState(false),[descargando,setDescargando]=useState(false);
+
+ const tokenActual=()=>sesion?.token||localStorage.getItem('lunariaToken')||'';
+
  const consultar=async()=>{
   setCargando(true);setError('');
   try{
    const params=new URLSearchParams({periodo,valor,sedeId});
-   const r=await fetch(`https://lunariasuites.onrender.com/api/informes/estadisticas?${params.toString()}`,{headers:{Authorization:`Bearer ${sesion?.token||localStorage.getItem('lunariaToken')||''}`}});
+   const r=await fetch(`https://lunariasuites.onrender.com/api/informes/estadisticas?${params.toString()}`,{headers:{Authorization:`Bearer ${tokenActual()}`}});
    const d=await r.json();if(!r.ok)throw new Error(d.mensaje||'No se pudo consultar el informe.');setSedes(d.sedes||[]);setDatos(d);
   }catch(e){setError(e.message);}finally{setCargando(false);}
  };
+
+ const descargarPdf=async()=>{
+  setDescargando(true);setError('');
+  try{
+   const params=new URLSearchParams({periodo,valor,sedeId});
+   const r=await fetch(`https://lunariasuites.onrender.com/api/informes/estadisticas/pdf?${params.toString()}`,{headers:{Authorization:`Bearer ${tokenActual()}`}});
+   if(!r.ok){
+    const d=await r.json().catch(()=>({}));
+    throw new Error(d.mensaje||'No se pudo descargar el PDF del informe.');
+   }
+   const blob=await r.blob();
+   const url=window.URL.createObjectURL(blob);
+   const enlace=document.createElement('a');
+   enlace.href=url;
+   enlace.download=`informe-lunaria-${valor}${sedeId!=='todas'?`-sede-${sedeId}`:''}.pdf`;
+   document.body.appendChild(enlace);
+   enlace.click();
+   enlace.remove();
+   window.URL.revokeObjectURL(url);
+  }catch(e){setError(e.message);}finally{setDescargando(false);}
+ };
+
  const cop=n=>Number(n||0).toLocaleString('es-CO',{style:'currency',currency:'COP',minimumFractionDigits:0,maximumFractionDigits:0});
 
  const cambiarPeriodo=e=>{const p=e.target.value;setPeriodo(p);setDatos(null);setValor(p==='mes'?`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`:String(hoy.getFullYear()));};
@@ -25,6 +50,7 @@ export default function GestionInformes({sesion}){
    <label>{periodo==='mes'?'Mes':'Año'}<input type={periodo==='mes'?'month':'number'} min={periodo==='mes'?'2000':2000} max={periodo==='mes'?undefined:2100} value={valor} onChange={e=>setValor(e.target.value)}/></label>
    <label>Sede<select value={sedeId} onChange={e=>{setSedeId(e.target.value);setDatos(null);}}><option value="todas">Todas las sedes</option>{sedes.map(s=><option key={s.idSedes} value={s.idSedes}>{s.nombre}</option>)}</select></label>
    <button onClick={consultar} disabled={cargando||!valor}>{cargando?'Consultando…':'Consultar'}</button>
+   <button type="button" onClick={descargarPdf} disabled={descargando||cargando||!valor||!datos}>{descargando?'Generando PDF…':'Descargar PDF'}</button>
   </div>
   {error&&<p role="alert">{error}</p>}
   {datos&&<>

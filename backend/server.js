@@ -158,6 +158,108 @@ function crearPdfReserva(datos) {
   return Buffer.from(pdf, 'ascii');
 }
 
+function crearPdfInforme(datos) {
+  const normalizar = (v) => String(v ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\x20-\x7E]/g, ' ');
+  const escapar = (v) => normalizar(v)
+    .replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+
+  const fechaGeneracion = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
+  const periodoTexto = datos.periodo === 'anio'
+    ? `Ano ${datos.valor}`
+    : `Mes ${datos.valor}`;
+
+  const filas = [
+    { tipo: 'titulo', texto: 'HOTEL LUNARIA' },
+    { tipo: 'subtitulo', texto: 'INFORME ESTADISTICO DE VENTAS Y OCUPACION' },
+    { tipo: 'normal', texto: `Periodo consultado: ${periodoTexto}` },
+    { tipo: 'normal', texto: `Fecha de generacion: ${fechaGeneracion}` },
+    { tipo: 'linea' },
+    { tipo: 'seccion', texto: 'RESUMEN GLOBAL DEL HOTEL' },
+    { tipo: 'normal', texto: `Ingresos totales globales (IVA incluido): $${Number(datos.ingresosTotales || 0).toLocaleString('es-CO')} COP` },
+    { tipo: 'normal', texto: `Subtotal global: $${Number(datos.subtotalGlobal || 0).toLocaleString('es-CO')} COP` },
+    { tipo: 'normal', texto: `IVA (${Number(datos.ivaPorcentaje ?? 19)}%): $${Number(datos.ivaGlobal || 0).toLocaleString('es-CO')} COP` },
+    { tipo: 'normal', texto: `Total de reservas global: ${Number(datos.totalReservas || 0)} (Confirmadas: ${Number(datos.confirmadas || 0)}, Canceladas: ${Number(datos.canceladas || 0)})` },
+    { tipo: 'normal', texto: `Ocupacion general: ${Number(datos.ocupacionPorcentaje || 0)}%` },
+    { tipo: 'linea' },
+    { tipo: 'seccion', texto: 'RENDIMIENTO POR SEDE' }
+  ];
+
+  const listaSedes = Array.isArray(datos.porSede) ? datos.porSede : [];
+  if (!listaSedes.length) {
+    filas.push({ tipo: 'normal', texto: 'Sin datos de sedes para el filtro seleccionado.' });
+  } else {
+    for (const s of listaSedes) {
+      filas.push({ tipo: 'subseccion', texto: `${s.sede || 'Sede'}` });
+      filas.push({
+        tipo: 'normal',
+        texto: `Reservas: ${Number(s.reservas || 0)} | Subtotal: $${Number(s.subtotal || 0).toLocaleString('es-CO')} | IVA: $${Number(s.iva || 0).toLocaleString('es-CO')} | Total: $${Number(s.ingresosTotales || 0).toLocaleString('es-CO')} | Ocupacion: ${Number(s.ocupacionPorcentaje || 0)}%`
+      });
+    }
+  }
+
+  if (datos.totalGeneralSedes) {
+    filas.push({ tipo: 'linea' });
+    filas.push({
+      tipo: 'total',
+      texto: `TOTAL GENERAL: ${Number(datos.totalGeneralSedes.reservas || 0)} reservas | $${Number(datos.totalGeneralSedes.ingresosTotales || 0).toLocaleString('es-CO')} COP`
+    });
+  }
+
+  const ops = [];
+  let y = 790;
+  const escribir = (texto, size, bold = false, align = 'left') => {
+    const safe = escapar(texto);
+    const estimado = normalizar(texto).length * size * 0.52;
+    const x = align === 'center' ? Math.max(50, (595 - estimado) / 2) : 50;
+    ops.push(`BT /${bold ? 'F2' : 'F1'} ${size} Tf 1 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)} Tm (${safe}) Tj ET`);
+    y -= size + 8;
+  };
+
+  for (const fila of filas) {
+    if (y < 60) break;
+    if (fila.tipo === 'linea') {
+      y -= 3;
+      ops.push(`0.75 w 50 ${y} m 545 ${y} l S`);
+      y -= 14;
+      continue;
+    }
+    if (fila.tipo === 'titulo') { escribir(fila.texto, 21, true, 'center'); y -= 2; continue; }
+    if (fila.tipo === 'subtitulo') { escribir(fila.texto, 11, true, 'center'); y -= 6; continue; }
+    if (fila.tipo === 'seccion') { escribir(fila.texto, 12, true); continue; }
+    if (fila.tipo === 'subseccion') { escribir(fila.texto, 11, true); continue; }
+    if (fila.tipo === 'total') { escribir(fila.texto, 12, true); continue; }
+
+    const texto = normalizar(fila.texto);
+    const partes = [];
+    for (let resto = texto; resto.length > 94; resto = resto.slice(94)) partes.push(resto.slice(0, 94));
+    partes.push(texto.slice(partes.reduce((n, x) => n + x.length, 0)));
+    partes.forEach(parte => escribir(parte, 9.5, false));
+  }
+
+  const contenido = ops.join('\n');
+  const objetos = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>',
+    `<< /Length ${Buffer.byteLength(contenido, 'ascii')} >>\nstream\n${contenido}\nendstream`
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objetos.forEach((obj, i) => {
+    offsets.push(Buffer.byteLength(pdf, 'ascii'));
+    pdf += `${i + 1} 0 obj\n${obj}\nendobj\n`;
+  });
+  const xref = Buffer.byteLength(pdf, 'ascii');
+  pdf += `xref\n0 ${objetos.length + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i < offsets.length; i++) pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objetos.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return Buffer.from(pdf, 'ascii');
+}
+
 function leerComprobanteBase64(comprobante) {
   if (!comprobante) return null;
   const match = String(comprobante.data || '').match(/^data:(application\/pdf|image\/png|image\/jpeg);base64,([A-Za-z0-9+/=]+)$/);
@@ -2854,6 +2956,138 @@ app.get('/api/informes/estadisticas', exigirToken, exigirGerente, async (req, re
   } catch (e) {
     console.error('Informe estadístico:', e);
     res.status(500).json({ mensaje: 'No se pudo generar el informe estadístico.' });
+  }
+});
+
+app.get('/api/informes/estadisticas/pdf', exigirToken, exigirGerente, async (req, res) => {
+  const periodo = String(req.query.periodo || 'mes');
+  const valor = String(req.query.valor || '');
+  const sedeId = String(req.query.sedeId || 'todas');
+  let inicio, fin, etiqueta;
+
+  if (periodo === 'mes' && /^\d{4}-(0[1-9]|1[0-2])$/.test(valor)) {
+    const [anio, mes] = valor.split('-').map(Number);
+    inicio = `${valor}-01`;
+    const siguienteAnio = mes === 12 ? anio + 1 : anio;
+    const siguienteMes = mes === 12 ? 1 : mes + 1;
+    fin = `${siguienteAnio}-${String(siguienteMes).padStart(2, '0')}-01`;
+    etiqueta = valor;
+  } else if (periodo === 'anio' && /^\d{4}$/.test(valor)) {
+    inicio = `${valor}-01-01`;
+    fin = `${Number(valor) + 1}-01-01`;
+    etiqueta = valor;
+  } else {
+    return res.status(400).json({ mensaje: 'Selecciona un mes (AAAA-MM) o un año (AAAA) válido.' });
+  }
+
+  if (sedeId !== 'todas' && !/^\d+$/.test(sedeId)) {
+    return res.status(400).json({ mensaje: 'La sede seleccionada no es válida.' });
+  }
+
+  try {
+    const ivaPorcentaje = Number.isFinite(Number(ivaPorcentajeActual)) ? Number(ivaPorcentajeActual) : 19;
+
+    const [globalRows] = await db.query(`
+      SELECT
+        COUNT(*) AS totalReservas,
+        COALESCE(SUM(CASE WHEN LOWER(estado) = 'cancelada' THEN 1 ELSE 0 END), 0) AS canceladas,
+        COALESCE(SUM(CASE WHEN LOWER(estado) IN ('confirmada', 'completada') THEN 1 ELSE 0 END), 0) AS confirmadas,
+        COALESCE(SUM(CASE WHEN LOWER(COALESCE(estado, '')) <> 'cancelada' THEN total ELSE 0 END), 0) AS ingresosTotales
+      FROM reservas
+      WHERE fechaInicio >= ? AND fechaInicio < ?
+    `, [inicio, fin]);
+
+    const [sedes] = await db.query(`
+      SELECT
+        s.idSedes,
+        s.nombre AS sede,
+        (
+          SELECT COUNT(*)
+          FROM reservas r
+          WHERE r.idSedeFK = s.idSedes
+            AND r.fechaInicio >= ? AND r.fechaInicio < ?
+        ) AS reservas,
+        (
+          SELECT COALESCE(SUM(CASE WHEN LOWER(COALESCE(r.estado, '')) <> 'cancelada' THEN r.total ELSE 0 END), 0)
+          FROM reservas r
+          WHERE r.idSedeFK = s.idSedes
+            AND r.fechaInicio >= ? AND r.fechaInicio < ?
+        ) AS ingresosTotales,
+        (
+          SELECT COALESCE(SUM(
+            GREATEST(0, DATEDIFF(LEAST(r.fechaFin, ?), GREATEST(r.fechaInicio, ?))) *
+            COALESCE((SELECT SUM(rhh.cantidadHabitaciones) FROM reservas_has_habitaciones rhh WHERE rhh.idReservasFK = r.idReservas), 1)
+          ), 0)
+          FROM reservas r
+          WHERE r.idSedeFK = s.idSedes
+            AND LOWER(COALESCE(r.estado, '')) IN ('confirmada', 'completada')
+            AND r.fechaInicio < ? AND r.fechaFin > ?
+        ) AS nochesOcupadas,
+        (
+          SELECT COALESCE(SUM(h.cantidad), 0)
+          FROM habitaciones h
+          WHERE h.idSedeFK = s.idSedes AND h.estado = 1
+        ) AS habitacionesDisponibles
+      FROM sedes s
+      WHERE s.estado = 1
+      ORDER BY s.nombre
+    `, [inicio, fin, inicio, fin, fin, inicio, fin, inicio]);
+
+    const dias = Math.max(1, Math.round((new Date(fin + 'T00:00:00Z') - new Date(inicio + 'T00:00:00Z')) / 86400000));
+
+    const detalleCompleto = sedes.map(s => {
+      const ingresos = Number(s.ingresosTotales || 0);
+      const subtotal = ingresos / (1 + ivaPorcentaje / 100);
+      return {
+        ...s,
+        ingresosTotales: ingresos,
+        subtotal: Math.round(subtotal * 100) / 100,
+        iva: Math.round((ingresos - subtotal) * 100) / 100,
+        reservas: Number(s.reservas || 0),
+        ocupacionPorcentaje: s.habitacionesDisponibles
+          ? Number((Number(s.nochesOcupadas || 0) / (Number(s.habitacionesDisponibles) * dias) * 100).toFixed(2))
+          : 0
+      };
+    });
+
+    const capacidadTotal = detalleCompleto.reduce((a, s) => a + Number(s.habitacionesDisponibles || 0) * dias, 0);
+    const nochesTotal = detalleCompleto.reduce((a, s) => a + Number(s.nochesOcupadas || 0), 0);
+    const ingresosGlobales = Number(globalRows[0]?.ingresosTotales || 0);
+    const subtotalGlobal = ingresosGlobales / (1 + ivaPorcentaje / 100);
+    const porSede = sedeId === 'todas'
+      ? detalleCompleto
+      : detalleCompleto.filter(s => String(s.idSedes) === sedeId);
+
+    const totalGeneralSedes = porSede.reduce((a, s) => ({
+      reservas: a.reservas + s.reservas,
+      subtotal: a.subtotal + s.subtotal,
+      iva: a.iva + s.iva,
+      ingresosTotales: a.ingresosTotales + s.ingresosTotales
+    }), { reservas: 0, subtotal: 0, iva: 0, ingresosTotales: 0 });
+
+    const pdfBuffer = crearPdfInforme({
+      periodo,
+      valor: etiqueta,
+      ivaPorcentaje,
+      totalReservas: Number(globalRows[0]?.totalReservas || 0),
+      confirmadas: Number(globalRows[0]?.confirmadas || 0),
+      canceladas: Number(globalRows[0]?.canceladas || 0),
+      ingresosTotales: ingresosGlobales,
+      subtotalGlobal: Math.round(subtotalGlobal * 100) / 100,
+      ivaGlobal: Math.round((ingresosGlobales - subtotalGlobal) * 100) / 100,
+      ocupacionPorcentaje: capacidadTotal ? Number((nochesTotal / capacidadTotal * 100).toFixed(2)) : 0,
+      porSede,
+      totalGeneralSedes
+    });
+
+    const nombreArchivo = `informe-lunaria-${etiqueta}${sedeId !== 'todas' ? `-sede-${sedeId}` : ''}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(pdfBuffer);
+  } catch (e) {
+    console.error('Error generando PDF de informe:', e);
+    return res.status(500).json({ mensaje: 'No se pudo generar el PDF del informe.' });
   }
 });
 
