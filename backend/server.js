@@ -2670,14 +2670,53 @@ app.patch('/api/huespedes/:id/completar', exigirToken, async(req,res)=>{
 // ==========================================
 // OTROS ENDPOINTS Y REPORTES
 // ==========================================
-app.get('/api/mis-reservas', exigirToken, async(req,res)=>{
-  if(!req.sesion.idClientesFK)return res.status(403).json({mensaje:'Esta cuenta no está vinculada a un cliente.'});
-  try{
-    const [rows]=await db.query(`SELECT r.idReservas,r.codigoReserva,r.fechaInicio,r.fechaFin,r.horaLlegada,r.horaSalida,r.estado,r.total,r.metodoPago,r.estadoPago,
-      s.nombre AS sede FROM reservas r LEFT JOIN sedes s ON s.idSedes=r.idSedeFK
-      WHERE r.idClientesFK=? ORDER BY r.idReservas DESC`,[req.sesion.idClientesFK]);
+app.get('/api/mis-reservas', exigirToken, async (req, res) => {
+  try {
+    let clienteId = Number(req.sesion.idClientesFK) || null;
+
+    if (!clienteId && req.sesion.idUsuarios) {
+      const [uRows] = await db.query(
+        'SELECT idUsuarios, Nombre, Correo, Telefono, idRolesFK, idClientesFK FROM usuarios WHERE idUsuarios = ? LIMIT 1',
+        [req.sesion.idUsuarios]
+      );
+      const u = uRows[0];
+
+      if (u?.idClientesFK) {
+        clienteId = Number(u.idClientesFK);
+      } else if (u?.Correo) {
+        const [cRows] = await db.query(
+          'SELECT idClientes FROM clientes WHERE LOWER(TRIM(correo)) = LOWER(TRIM(?)) LIMIT 1',
+          [u.Correo]
+        );
+        if (cRows[0]?.idClientes) {
+          clienteId = Number(cRows[0].idClientes);
+          await db.query('UPDATE usuarios SET idClientesFK = ? WHERE idUsuarios = ?', [clienteId, u.idUsuarios]);
+        } else if (Number(u.idRolesFK) === 4) {
+          const [ins] = await db.query(
+            'INSERT INTO clientes (nombre, correo, telefono) VALUES (?, ?, ?)',
+            [u.Nombre || 'Cliente', u.Correo, u.Telefono || '']
+          );
+          clienteId = Number(ins.insertId);
+          await db.query('UPDATE usuarios SET idClientesFK = ? WHERE idUsuarios = ?', [clienteId, u.idUsuarios]);
+        }
+      }
+    }
+
+    if (!clienteId) {
+      return res.status(403).json({ mensaje: 'Esta cuenta no está vinculada a un cliente.' });
+    }
+
+    const [rows] = await db.query(
+      `SELECT r.idReservas, r.codigoReserva, r.fechaInicio, r.fechaFin, r.horaLlegada, r.horaSalida, r.estado, r.total, r.metodoPago, r.estadoPago,
+        s.nombre AS sede FROM reservas r LEFT JOIN sedes s ON s.idSedes = r.idSedeFK
+        WHERE r.idClientesFK = ? ORDER BY r.idReservas DESC`,
+      [clienteId]
+    );
     res.json(rows);
-  }catch(e){res.status(500).json({mensaje:'No se pudieron consultar tus reservas.'});}
+  } catch (e) {
+    console.error('Error en /api/mis-reservas:', e);
+    res.status(500).json({ mensaje: 'No se pudieron consultar tus reservas.' });
+  }
 });
 
 app.get('/api/configuracion/publica', async(req,res)=>{
