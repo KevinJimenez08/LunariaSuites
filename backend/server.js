@@ -2795,34 +2795,81 @@ function validarRangoReserva(fechaInicio, horaLlegada, fechaFin, horaSalida) {
 
 app.patch('/api/reservas/:id/cancelar', exigirToken, async (req, res) => {
   const id = Number(req.params.id);
-  const motivo = String(req.body?.motivo || '').trim().slice(0,500);
+  const motivo = String(req.body?.motivo || '').trim().slice(0, 500);
   try {
-    const [[r]] = await db.query(`SELECT r.idReservas,r.estado,r.idClientesFK,r.reservadoPorEmail,
-      c.Email,c.Nombre FROM reservas r LEFT JOIN clientes c ON c.idClientes=r.idClientesFK
-      WHERE r.idReservas=? LIMIT 1`, [id]);
+    const [[r]] = await db.query(
+      `SELECT r.idReservas, r.estado, r.idClientesFK, r.reservadoPorEmail,
+        c.Email, c.Nombre FROM reservas r LEFT JOIN clientes c ON c.idClientes = r.idClientesFK
+        WHERE r.idReservas = ? LIMIT 1`,
+      [id]
+    );
     if (!r) return res.status(404).json({ mensaje: 'Reserva no encontrada.' });
+
     const rol = normalizarPermiso(req.sesion.Rol || '');
-    const personal = ['gerente','superadmin','administrador','admin', 'recepcionista'].includes(rol) || [1, 2, 3].includes(Number(req.sesion.idRolesFK));
-    if (!personal && Number(r.idClientesFK) !== Number(req.sesion.idClientesFK)) return res.status(403).json({ mensaje: 'No puedes cancelar una reserva que no te pertenece.' });
-    if (String(r.estado).toLowerCase() === 'cancelada') return res.json({ mensaje: 'La reserva ya estaba cancelada.' });
-    await db.query("UPDATE reservas SET estado='Cancelada', observacionPago=CONCAT(COALESCE(observacionPago,''), ?) WHERE idReservas=?",
-      [motivo ? `\nCancelación: ${motivo}` : '\nCancelada por solicitud.', id]);
-    const [admins] = await db.query(`SELECT u.idUsuarios FROM usuarios u JOIN roles ro ON ro.idRoles=u.idRolesFK
-      WHERE u.Estado=1 AND LOWER(ro.nomRol) IN ('gerente','super admin','superadmin','administrador','admin')`);
-    for (const a of admins) await db.query(`INSERT INTO notificaciones (idUsuarioDestinoFK,tipo,titulo,mensaje,idReservaFK)
-      VALUES (?,'reserva_cancelada','Reserva cancelada',?,?)`, [a.idUsuarios, `La reserva ${id} de ${r.Nombre || 'un cliente'} fue cancelada.`, id]);
+    const personal = ['gerente', 'superadmin', 'administrador', 'admin', 'recepcionista'].includes(rol) || [1, 2, 3].includes(Number(req.sesion.idRolesFK));
+
+    let clienteSesionId = Number(req.sesion.idClientesFK) || null;
+    if (!personal && !clienteSesionId && req.sesion.idUsuarios) {
+      const [[u]] = await db.query(
+        'SELECT idClientesFK, Email FROM usuarios WHERE idUsuarios = ? LIMIT 1',
+        [req.sesion.idUsuarios]
+      );
+      clienteSesionId = Number(u?.idClientesFK) || null;
+      if (!clienteSesionId && u?.Email) {
+        const [[c]] = await db.query(
+          'SELECT idClientes FROM clientes WHERE LOWER(TRIM(Email)) = LOWER(TRIM(?)) LIMIT 1',
+          [u.Email]
+        );
+        clienteSesionId = Number(c?.idClientes) || null;
+      }
+    }
+
+    if (!personal && (!clienteSesionId || Number(r.idClientesFK) !== clienteSesionId)) {
+      return res.status(403).json({ mensaje: 'No puedes cancelar una reserva que no te pertenece.' });
+    }
+
+    if (String(r.estado).toLowerCase() === 'cancelada') {
+      return res.json({ mensaje: 'La reserva ya estaba cancelada.' });
+    }
+
+    await db.query(
+      "UPDATE reservas SET estado = 'Cancelada', observacionPago = CONCAT(COALESCE(observacionPago, ''), ?) WHERE idReservas = ?",
+      [motivo ? `\nCancelación: ${motivo}` : '\nCancelada por solicitud.', id]
+    );
+
+    const [admins] = await db.query(
+      `SELECT u.idUsuarios FROM usuarios u JOIN roles ro ON ro.idRoles = u.idRolesFK
+        WHERE u.Estado = 1 AND LOWER(ro.nomRol) IN ('gerente', 'super admin', 'superadmin', 'administrador', 'admin')`
+    );
+    for (const a of admins) {
+      await db.query(
+        `INSERT INTO notificaciones (idUsuarioDestinoFK, tipo, titulo, mensaje, idReservaFK)
+          VALUES (?, 'reserva_cancelada', 'Reserva cancelada', ?, ?)`,
+        [a.idUsuarios, `La reserva ${id} de ${r.Nombre || 'un cliente'} fue cancelada.`, id]
+      );
+    }
+
     let correoEnviado = false;
     const mailer = crearTransportadorCorreo();
     if (mailer && r.Email) {
       try {
-        await mailer.sendMail({from:process.env.SMTP_FROM||process.env.SMTP_USER,to:r.Email,
-          subject:'Hotel Lunaria: confirmación de cancelación',
-          text:`Hola ${r.Nombre || ''},\nConfirmamos que tu reserva ${id} fue cancelada.\n${motivo ? `Motivo: ${motivo}\n` : ''}Si necesitas ayuda, comunícate con nosotros.`});
+        await mailer.sendMail({
+          from: process.env.SMTP_FROM || process.env.SMTP_USER,
+          to: r.Email,
+          subject: 'Hotel Lunaria: confirmación de cancelación',
+          text: `Hola ${r.Nombre || ''},\nConfirmamos que tu reserva ${id} fue cancelada.\n${motivo ? `Motivo: ${motivo}\n` : ''}Si necesitas ayuda, comunícate con nosotros.`
+        });
         correoEnviado = true;
-      } catch (e) { console.error('Correo de cancelación:', e); }
+      } catch (e) {
+        console.error('Correo de cancelación:', e);
+      }
     }
-    res.json({ mensaje:'Reserva cancelada correctamente.', correoEnviado });
-  } catch (e) { console.error('Cancelar reserva:',e); res.status(500).json({mensaje:'No fue posible cancelar la reserva.'}); }
+
+    res.json({ mensaje: 'Reserva cancelada correctamente.', correoEnviado });
+  } catch (e) {
+    console.error('Cancelar reserva:', e);
+    res.status(500).json({ mensaje: 'No fue posible cancelar la reserva.' });
+  }
 });
 
 app.get('/api/notificaciones', exigirToken, exigirPersonal, async (req,res) => {
