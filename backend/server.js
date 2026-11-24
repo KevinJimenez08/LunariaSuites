@@ -612,6 +612,9 @@ app.use('/api/reservas', exigirToken, (req, res, next) => {
     }).catch(error => { console.error('Error validando rol de huésped:', error); return res.status(500).json({ mensaje: 'No se pudo validar el rol de la cuenta.' }); });
     return;
   }
+  if (req.method === 'PATCH' && /^\/\d+\/cancelar$/.test(req.path)) {
+    return next();
+  }
   return exigirModulo('reservas')(req, res, next);
 });
 
