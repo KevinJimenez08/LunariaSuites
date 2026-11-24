@@ -42,6 +42,35 @@ function hashCodigoRecuperacion(codigo) {
   return crypto.createHash('sha256').update(String(codigo)).digest('hex');
 }
 
+function fechaHoraBogota(fecha, hora = '00:00') {
+  const f = String(fecha || '').slice(0, 10);
+  const h = String(hora || '00:00').slice(0, 5);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f) || !/^\d{2}:\d{2}$/.test(h)) return null;
+  const [y, mo, d] = f.split('-').map(Number);
+  const [hh, mm] = h.split(':').map(Number);
+  const prueba = new Date(Date.UTC(y, mo - 1, d));
+  if (
+    prueba.getUTCFullYear() !== y ||
+    prueba.getUTCMonth() !== mo - 1 ||
+    prueba.getUTCDate() !== d ||
+    hh > 23 ||
+    mm > 59
+  ) {
+    return null;
+  }
+  return new Date(`${f}T${h}:00-05:00`);
+}
+
+function validarRangoReserva(fechaInicio, horaLlegada, fechaFin, horaSalida) {
+  const entrada = fechaHoraBogota(fechaInicio, horaLlegada);
+  const salida = fechaHoraBogota(fechaFin, horaSalida);
+  if (!entrada || !salida) return 'Selecciona fechas y horas válidas.';
+  if (entrada.getTime() < Date.now()) return 'La entrada no puede estar en el pasado.';
+  if (salida.getTime() < Date.now()) return 'La salida no puede estar en el pasado.';
+  if (salida <= entrada) return 'La salida debe ser posterior a la entrada.';
+  return null;
+}
+
 const crearTransportadorCorreo = () => {
   if (!process.env.RESEND_API_KEY) return null;
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -116,10 +145,10 @@ function crearPdfReserva(datos) {
   ];
   const ops = [];
   let y = 790;
-  const escribir = (texto, size, bold=false, align='left') => {
+  const escribir = (texto, size, bold = false, align = 'left') => {
     const safe = escapar(texto);
     const estimado = normalizar(texto).length * size * 0.52;
-    const x = align === 'center' ? Math.max(50, (595-estimado)/2) : 50;
+    const x = align === 'center' ? Math.max(50, (595 - estimado) / 2) : 50;
     ops.push(`BT /${bold ? 'F2' : 'F1'} ${size} Tf 1 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)} Tm (${safe}) Tj ET`);
     y -= size + 9;
   };
@@ -136,8 +165,8 @@ function crearPdfReserva(datos) {
     if (fila.tipo === 'nota') { y -= 8; escribir(fila.texto, 9, false); continue; }
     const texto = normalizar(fila.texto);
     const partes = [];
-    for (let resto = texto; resto.length > 92; resto = resto.slice(92)) partes.push(resto.slice(0,92));
-    partes.push(texto.slice(partes.reduce((n,x)=>n+x.length,0)));
+    for (let resto = texto; resto.length > 92; resto = resto.slice(92)) partes.push(resto.slice(0, 92));
+    partes.push(texto.slice(partes.reduce((n, x) => n + x.length, 0)));
     partes.forEach(parte => escribir(parte, 10, false));
   }
   const contenido = ops.join('\n');
@@ -276,44 +305,47 @@ console.log('Configuración de correo:', {
   resendConfigurado: Boolean(process.env.RESEND_API_KEY)
 });
 
-app.post('/api/auth/recuperar', async (req,res) => {
-  const email=String(req.body?.Email||'').trim().toLowerCase();
-  if(!email) return res.status(400).json({mensaje:'Ingresa tu correo electrónico.'});
+app.post('/api/auth/recuperar', async (req, res) => {
+  const email = String(req.body?.Email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ mensaje: 'Ingresa tu correo electrónico.' });
   try {
-    const [usuarios]=await db.query('SELECT idUsuarios,Email FROM usuarios WHERE LOWER(Email)=? AND Estado=1 LIMIT 1',[email]);
-    if(!usuarios.length) return res.json({mensaje:'Si el correo está registrado, recibirás un código.'});
-    const mailer=crearTransportadorCorreo();
-    if(!mailer) return res.status(503).json({mensaje:'Configura RESEND_API_KEY o SMTP en el entorno.'});
-    let codigo,hash,unico=false;
-    for(let i=0;i<40;i++){
-      codigo=String(crypto.randomInt(0,1000000)).padStart(6,'0'); hash=hashCodigoRecuperacion(codigo);
-      const [existente]=await db.query('SELECT id FROM recuperacion_contrasenas WHERE codigoHash=? AND usado=0 AND expiraEn>NOW() LIMIT 1',[hash]);
-      if(!existente.length){unico=true;break;}
+    const [usuarios] = await db.query('SELECT idUsuarios,Email FROM usuarios WHERE LOWER(Email)=? AND Estado=1 LIMIT 1', [email]);
+    if (!usuarios.length) return res.json({ mensaje: 'Si el correo está registrado, recibirás un código.' });
+    const mailer = crearTransportadorCorreo();
+    if (!mailer) return res.status(503).json({ mensaje: 'Configura RESEND_API_KEY o SMTP en el entorno.' });
+    let codigo, hash, unico = false;
+    for (let i = 0; i < 40; i++) {
+      codigo = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+      hash = hashCodigoRecuperacion(codigo);
+      const [existente] = await db.query('SELECT id FROM recuperacion_contrasenas WHERE codigoHash=? AND usado=0 AND expiraEn>NOW() LIMIT 1', [hash]);
+      if (!existente.length) { unico = true; break; }
     }
-    if(!unico) throw new Error('No se pudo generar un código único. Intenta nuevamente.');
-    await db.query('UPDATE recuperacion_contrasenas SET usado=1 WHERE idUsuariosFK=? AND usado=0',[usuarios[0].idUsuarios]);
-    await db.query('INSERT INTO recuperacion_contrasenas (idUsuariosFK,codigoHash,expiraEn) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 2 MINUTE))',[usuarios[0].idUsuarios,hash]);
-    await mailer.sendMail({from:process.env.SMTP_FROM||process.env.SMTP_USER,to:usuarios[0].Email,subject:'Recuperación de contraseña - Hotel Lunaria',text:`Tu código es ${codigo}. Caduca en 2 minutos.`});
-    res.json({mensaje:'Te enviamos un código de 6 dígitos a tu correo.'});
-  } catch(e){console.error('Recuperación:',e);res.status(500).json({mensaje:'No se pudo enviar el código.'});}
+    if (!unico) throw new Error('No se pudo generar un código único. Intenta nuevamente.');
+    await db.query('UPDATE recuperacion_contrasenas SET usado=1 WHERE idUsuariosFK=? AND usado=0', [usuarios[0].idUsuarios]);
+    await db.query('INSERT INTO recuperacion_contrasenas (idUsuariosFK,codigoHash,expiraEn) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 2 MINUTE))', [usuarios[0].idUsuarios, hash]);
+    await mailer.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: usuarios[0].Email, subject: 'Recuperación de contraseña - Hotel Lunaria', text: `Tu código es ${codigo}. Caduca en 2 minutos.` });
+    res.json({ mensaje: 'Te enviamos un código de 6 dígitos a tu correo.' });
+  } catch (e) { console.error('Recuperación:', e); res.status(500).json({ mensaje: 'No se pudo enviar el código.' }); }
 });
 
-app.post('/api/auth/restablecer', async(req,res)=>{
-  const email=String(req.body?.Email||'').trim().toLowerCase(),codigo=String(req.body?.codigo||''),nueva=String(req.body?.nuevaContrasena||'');
-  if(!email||!/^[0-9]{6}$/.test(codigo)||nueva.length<6)return res.status(400).json({mensaje:'Verifica correo, código y contraseña (mínimo 6 caracteres).'});
-  const connection=await db.getConnection();
-  try{
+app.post('/api/auth/restablecer', async (req, res) => {
+  const email = String(req.body?.Email || '').trim().toLowerCase();
+  const codigo = String(req.body?.codigo || '');
+  const nueva = String(req.body?.nuevaContrasena || '');
+  if (!email || !/^[0-9]{6}$/.test(codigo) || nueva.length < 6) return res.status(400).json({ mensaje: 'Verifica correo, código y contraseña (mínimo 6 caracteres).' });
+  const connection = await db.getConnection();
+  try {
     await connection.beginTransaction();
-    const hash=hashCodigoRecuperacion(codigo);
-    const [rows]=await connection.query(`SELECT r.id,r.idUsuariosFK FROM recuperacion_contrasenas r INNER JOIN usuarios u ON u.idUsuarios=r.idUsuariosFK WHERE LOWER(u.Email)=? AND r.codigoHash=? AND r.usado=0 AND r.expiraEn>NOW() LIMIT 1 FOR UPDATE`,[email,hash]);
-    if(!rows.length)throw new Error('El código es incorrecto o caducó. Solicita uno nuevo.');
-    const pass=await bcrypt.hash(nueva,10);
-    await connection.query('UPDATE usuarios SET contraseña=? WHERE idUsuarios=?',[pass,rows[0].idUsuariosFK]);
-    await connection.query('UPDATE recuperacion_contrasenas SET usado=1 WHERE id=?',[rows[0].id]);
+    const hash = hashCodigoRecuperacion(codigo);
+    const [rows] = await connection.query(`SELECT r.id,r.idUsuariosFK FROM recuperacion_contrasenas r INNER JOIN usuarios u ON u.idUsuarios=r.idUsuariosFK WHERE LOWER(u.Email)=? AND r.codigoHash=? AND r.usado=0 AND r.expiraEn>NOW() LIMIT 1 FOR UPDATE`, [email, hash]);
+    if (!rows.length) throw new Error('El código es incorrecto o caducó. Solicita uno nuevo.');
+    const pass = await bcrypt.hash(nueva, 10);
+    await connection.query('UPDATE usuarios SET contraseña=? WHERE idUsuarios=?', [pass, rows[0].idUsuariosFK]);
+    await connection.query('UPDATE recuperacion_contrasenas SET usado=1 WHERE id=?', [rows[0].id]);
     await connection.commit();
     let correoAvisoEnviado = false;
     try {
-      const [[usuarioAviso]] = await db.query('SELECT Nombre,Email FROM usuarios WHERE idUsuarios=? LIMIT 1',[rows[0].idUsuariosFK]);
+      const [[usuarioAviso]] = await db.query('SELECT Nombre,Email FROM usuarios WHERE idUsuarios=? LIMIT 1', [rows[0].idUsuariosFK]);
       const mailAviso = crearTransportadorCorreo();
       if (mailAviso && usuarioAviso?.Email) {
         await mailAviso.sendMail({
@@ -325,8 +357,8 @@ app.post('/api/auth/restablecer', async(req,res)=>{
         correoAvisoEnviado = true;
       }
     } catch (mailError) { console.error('No se pudo notificar el restablecimiento:', mailError); }
-    res.json({mensaje:'Contraseña actualizada. Ya puedes iniciar sesión.', correoAvisoEnviado});
-  }catch(e){await connection.rollback();res.status(400).json({mensaje:e.message});}finally{connection.release();}
+    res.json({ mensaje: 'Contraseña actualizada. Ya puedes iniciar sesión.', correoAvisoEnviado });
+  } catch (e) { await connection.rollback(); res.status(400).json({ mensaje: e.message }); } finally { connection.release(); }
 });
 
 // ==========================================
@@ -575,7 +607,7 @@ function exigirAlgunoDeModulos(...modulos) {
       const permisos = permisosParseados(rows[0].Permisos);
       const permitidos = modulos.flatMap(m => mapa[m] || [m]);
       if (permisos.some(p => p === '*' || p === 'todos' || p === 'todoslosmodulos' || permitidos.includes(p))) return next();
-      return res.status(403).json({ mensaje: `Tu rol no tiene permiso para consultar este recurso.` });
+      return res.status(403).json({ mensaje: 'Tu rol no tiene permiso para consultar este recurso.' });
     } catch (error) {
       console.error('Error comprobando permisos alternativos:', error);
       return res.status(500).json({ mensaje: 'No fue posible comprobar los permisos de esta cuenta.' });
@@ -596,7 +628,7 @@ app.use('/api/clientes', exigirToken, async (req, res, next) => {
   if (req.method === 'GET') {
     try {
       const [roles] = await db.query('SELECT nomRol FROM roles WHERE idRoles=? LIMIT 1', [req.sesion.idRolesFK]);
-      if (['personaldeapoyo','soportetecnico','soporte'].includes(normalizarPermiso(roles[0]?.nomRol || ''))) return next();
+      if (['personaldeapoyo', 'soportetecnico', 'soporte'].includes(normalizarPermiso(roles[0]?.nomRol || ''))) return next();
     } catch { /* La comprobación estándar de permisos devuelve el error si falla la consulta. */ }
     return exigirAlgunoDeModulos('clientes', 'reservas', 'huespedes')(req, res, next);
   }
@@ -727,38 +759,43 @@ app.post('/api/usuarios', exigirToken, exigirModulo('usuarios'), async (req, res
   const { Nombre, Email, Telefono, idRolesFK, idClientesFK, idProveedoresFK, Estado } = req.body || {};
   const estadoValue = Estado !== undefined ? Estado : 1;
   if (!Nombre?.trim() || !Email?.trim()) return res.status(400).json({ mensaje: 'Nombre y correo son obligatorios.' });
-  const mailer=crearTransportadorCorreo();
-  if(!mailer)return res.status(503).json({mensaje:'Configura el servicio SMTP para enviar el enlace seguro de creación de contraseña. No se creó el usuario.'});
-  const connection=await db.getConnection();
-  try{
+  const mailer = crearTransportadorCorreo();
+  if (!mailer) return res.status(503).json({ mensaje: 'Configura el servicio SMTP para enviar el enlace seguro de creación de contraseña. No se creó el usuario.' });
+  const connection = await db.getConnection();
+  try {
     await connection.beginTransaction();
-    const [exists]=await connection.query('SELECT idUsuarios FROM usuarios WHERE LOWER(Email)=LOWER(?) LIMIT 1',[Email.trim()]);
-    if(exists.length)throw new Error('Ya existe un usuario con ese correo.');
-    const passwordTemporal=crypto.randomBytes(48).toString('hex');
-    const hashPassword=await bcrypt.hash(passwordTemporal,10);
-    const [result]=await connection.query(
+    const [exists] = await connection.query('SELECT idUsuarios FROM usuarios WHERE LOWER(Email)=LOWER(?) LIMIT 1', [Email.trim()]);
+    if (exists.length) throw new Error('Ya existe un usuario con ese correo.');
+    const passwordTemporal = crypto.randomBytes(48).toString('hex');
+    const hashPassword = await bcrypt.hash(passwordTemporal, 10);
+    const [result] = await connection.query(
       'INSERT INTO usuarios (Nombre,Email,Telefono,contraseña,idRolesFK,idClientesFK,idProveedoresFK,Estado) VALUES (?,?,?,?,?,?,?,?)',
-      [Nombre.trim(),Email.trim(),Telefono||null,hashPassword,idRolesFK||null,idClientesFK||null,idProveedoresFK||null,estadoValue]
+      [Nombre.trim(), Email.trim(), Telefono || null, hashPassword, idRolesFK || null, idClientesFK || null, idProveedoresFK || null, estadoValue]
     );
-    const token=crypto.randomBytes(32).toString('hex'), tokenHash=crypto.createHash('sha256').update(token).digest('hex');
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     await connection.query(`INSERT INTO recuperacion_admin (idUsuariosFK,tokenHash,expiraEn,solicitadoPorFK)
-      VALUES (?,?,DATE_ADD(NOW(),INTERVAL 30 MINUTE),?)`,[result.insertId,tokenHash,req.sesion.idUsuarios]);
+      VALUES (?,?,DATE_ADD(NOW(),INTERVAL 30 MINUTE),?)`, [result.insertId, tokenHash, req.sesion.idUsuarios]);
     await connection.query('INSERT INTO logs_seguridad (idUsuarioActorFK,idUsuarioObjetivoFK,accion,detalle) VALUES (?,?,?,?)',
-      [req.sesion.idUsuarios,result.insertId,'CUENTA_CREADA','Se envió enlace para que el usuario configure su contraseña.']);
+      [req.sesion.idUsuarios, result.insertId, 'CUENTA_CREADA', 'Se envió enlace para que el usuario configure su contraseña.']);
     await connection.commit();
     const base = process.env.FRONTEND_URL || req.headers.origin || 'https://lunariasuites.vercel.app';
-    const link=`${base.replace(/\/$/,'')}/restablecer-contrasena?token=${token}`;
-    let correoEnviado=true;
-    try{await mailer.sendMail({from:process.env.SMTP_FROM||process.env.SMTP_USER,to:Email.trim(),
-      subject:'Bienvenido a Hotel Lunaria: crea tu contraseña',
-      text:`Hola ${Nombre.trim()},\nSe creó tu cuenta de Hotel Lunaria. Crea tu propia contraseña con este enlace seguro (válido por 30 minutos): ${link}`});}
-    catch(mailError){correoEnviado=false;console.error('No se pudo enviar enlace inicial:',mailError);}
-    res.status(201).json({idUsuarios:result.insertId,Nombre:Nombre.trim(),Email:Email.trim(),Telefono,Estado:estadoValue,mensaje:correoEnviado?'Usuario creado. Se envió un enlace seguro para que configure su propia contraseña.':'Usuario creado, pero el correo no pudo enviarse. Solicita un nuevo restablecimiento desde Gerencia.',correoEnviado});
-  }catch(error){
+    const link = `${base.replace(/\/$/, '')}/restablecer-contrasena?token=${token}`;
+    let correoEnviado = true;
+    try {
+      await mailer.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: Email.trim(),
+        subject: 'Bienvenido a Hotel Lunaria: crea tu contraseña',
+        text: `Hola ${Nombre.trim()},\nSe creó tu cuenta de Hotel Lunaria. Crea tu propia contraseña con este enlace seguro (válido por 30 minutos): ${link}`
+      });
+    } catch (mailError) { correoEnviado = false; console.error('No se pudo enviar enlace inicial:', mailError); }
+    res.status(201).json({ idUsuarios: result.insertId, Nombre: Nombre.trim(), Email: Email.trim(), Telefono, Estado: estadoValue, mensaje: correoEnviado ? 'Usuario creado. Se envió un enlace seguro para que configure su propia contraseña.' : 'Usuario creado, pero el correo no pudo enviarse. Solicita un nuevo restablecimiento desde Gerencia.', correoEnviado });
+  } catch (error) {
     await connection.rollback();
-    console.error('Error al crear usuario:',error);
-    res.status(error.message?.includes('Ya existe')?409:500).json({mensaje:error.message||'No se pudo crear el usuario.'});
-  }finally{connection.release();}
+    console.error('Error al crear usuario:', error);
+    res.status(error.message?.includes('Ya existe') ? 409 : 500).json({ mensaje: error.message || 'No se pudo crear el usuario.' });
+  } finally { connection.release(); }
 });
 
 app.put('/api/usuarios/:id', exigirToken, exigirModulo('usuarios'), async (req, res) => {
@@ -767,11 +804,11 @@ app.put('/api/usuarios/:id', exigirToken, exigirModulo('usuarios'), async (req, 
   try {
     const [result] = await db.query(
       'UPDATE usuarios SET Nombre=?,Email=?,Telefono=?,idRolesFK=?,idClientesFK=?,idProveedoresFK=?,Estado=? WHERE idUsuarios=?',
-      [Nombre,Email,Telefono||null,idRolesFK||null,idClientesFK||null,idProveedoresFK||null,Estado,id]
+      [Nombre, Email, Telefono || null, idRolesFK || null, idClientesFK || null, idProveedoresFK || null, Estado, id]
     );
-    if(!result.affectedRows)return res.status(404).json({mensaje:'No se encontró el usuario.'});
-    res.json({mensaje:'Usuario actualizado. La contraseña no se modifica desde este formulario.'});
-  }catch(error){console.error('Error al actualizar usuario:',error);res.status(500).json({mensaje:'No se pudo actualizar el usuario.'});}
+    if (!result.affectedRows) return res.status(404).json({ mensaje: 'No se encontró el usuario.' });
+    res.json({ mensaje: 'Usuario actualizado. La contraseña no se modifica desde este formulario.' });
+  } catch (error) { console.error('Error al actualizar usuario:', error); res.status(500).json({ mensaje: 'No se pudo actualizar el usuario.' }); }
 });
 
 app.delete('/api/usuarios/:id', exigirToken, exigirModulo('usuarios'), async (req, res) => {
@@ -894,7 +931,7 @@ app.post('/api/habitaciones', exigirToken, exigirModulo('habitaciones'), async (
     );
     for (let n = 1; n <= cantidadVal; n++) {
       await connection.query('INSERT INTO habitaciones_unidades (idHabitacionesFK,numeroHabitacion,estado,idSedeFK) VALUES (?,?,?,?)',
-        [result.insertId, `${result.insertId}${String(n).padStart(2,'0')}`, 'Disponible', Number(idSedeFK) || 1]);
+        [result.insertId, `${result.insertId}${String(n).padStart(2, '0')}`, 'Disponible', Number(idSedeFK) || 1]);
     }
     await connection.commit();
     res.status(201).json({ idHabitaciones: result.insertId, tipo, capacidad, cantidad: cantidadVal, precio: Number(precio) || 0, estado: estadoVal, descripcion, imagen: imagen || '', idSedeFK: Number(idSedeFK) || 1 });
@@ -1125,7 +1162,7 @@ app.get('/api/comentarios', exigirToken, async (req, res) => {
   try {
     const [rolRows] = await db.query('SELECT nomRol FROM roles WHERE idRoles=? LIMIT 1', [req.sesion.idRolesFK]);
     const rol = normalizarPermiso(rolRows[0]?.nomRol || '');
-    const esSoporte = ['gerente','superadmin','administrador','admin','soportetecnico','soporte','personaldeapoyo'].includes(rol);
+    const esSoporte = ['gerente', 'superadmin', 'administrador', 'admin', 'soportetecnico', 'soporte', 'personaldeapoyo'].includes(rol);
     const [rows] = await db.query(`
       SELECT c.idComentario, c.mensaje, c.fechaCreacion, c.idUsuariosFK, c.idClientesFK,
              u.Nombre AS autor, r.nomRol AS rolAutor, cl.Nombre AS nombreCliente, cl.Email AS emailCliente
@@ -1152,7 +1189,7 @@ app.post('/api/comentarios', exigirToken, async (req, res) => {
       WHERE u.idUsuarios=? LIMIT 1`, [req.sesion.idUsuarios]);
     if (!userRows.length || Number(userRows[0].Estado) !== 1) return res.status(403).json({ mensaje: 'Tu cuenta no está activa.' });
     const rol = normalizarPermiso(userRows[0].nomRol || '');
-    const esSoporte = ['gerente','superadmin','administrador','admin','soportetecnico','soporte','personaldeapoyo'].includes(rol);
+    const esSoporte = ['gerente', 'superadmin', 'administrador', 'admin', 'soportetecnico', 'soporte', 'personaldeapoyo'].includes(rol);
     if (!esSoporte && rol !== 'cliente') return res.status(403).json({ mensaje: 'Tu rol no puede participar en este canal.' });
     if (!clienteObjetivo) return res.status(400).json({ mensaje: 'No se pudo identificar el hilo de conversación.' });
     if (!esSoporte && Number(req.sesion.idClientesFK) !== clienteObjetivo) return res.status(403).json({ mensaje: 'No puedes escribir en la conversación de otro cliente.' });
@@ -1160,8 +1197,8 @@ app.post('/api/comentarios', exigirToken, async (req, res) => {
     if (!esSoporte) {
       const [destinos] = await db.query(`SELECT u.idUsuarios FROM usuarios u JOIN roles r ON r.idRoles=u.idRolesFK
         WHERE u.Estado=1 AND LOWER(REPLACE(r.nomRol,' ','')) IN ('gerente','superadmin','administrador','admin','soporte','soportetecnico','personaldeapoyo')`);
-      const [[clienteChat]]=await db.query('SELECT Nombre,Email FROM clientes WHERE idClientes=? LIMIT 1',[clienteObjetivo]);
-      const identidad=clienteChat ? `${clienteChat.Nombre} (${clienteChat.Email})` : `Cliente #${clienteObjetivo}`;
+      const [[clienteChat]] = await db.query('SELECT Nombre,Email FROM clientes WHERE idClientes=? LIMIT 1', [clienteObjetivo]);
+      const identidad = clienteChat ? `${clienteChat.Nombre} (${clienteChat.Email})` : `Cliente #${clienteObjetivo}`;
       for (const d of destinos) await db.query(`INSERT INTO notificaciones (idUsuarioDestinoFK,tipo,titulo,mensaje)
         VALUES (?,'chat_nuevo','Nuevo mensaje de cliente',?)`, [d.idUsuarios, `${identidad} envió un mensaje. Abre el chat y selecciona su conversación para responder.`]);
     }
@@ -1175,11 +1212,11 @@ app.post('/api/comentarios', exigirToken, async (req, res) => {
 // ==========================================
 // RUTAS DE CLIENTES
 // ==========================================
-app.get('/api/clientes/chat', exigirToken, async(req,res)=>{
-  const rol=normalizarPermiso(req.sesion.Rol||'');
-  if(!['gerente','superadmin','administrador','admin','soporte','soportetecnico','personaldeapoyo'].includes(rol))return res.status(403).json({mensaje:'No tienes acceso a los clientes del chat.'});
-  try{const [rows]=await db.query('SELECT idClientes,Nombre,Email,Telefono FROM clientes WHERE Estado=1 ORDER BY Nombre');res.json(rows);}
-  catch(e){res.status(500).json({mensaje:'No se pudieron consultar los clientes.'});}
+app.get('/api/clientes/chat', exigirToken, async (req, res) => {
+  const rol = normalizarPermiso(req.sesion.Rol || '');
+  if (!['gerente', 'superadmin', 'administrador', 'admin', 'soporte', 'soportetecnico', 'personaldeapoyo'].includes(rol)) return res.status(403).json({ mensaje: 'No tienes acceso a los clientes del chat.' });
+  try { const [rows] = await db.query('SELECT idClientes,Nombre,Email,Telefono FROM clientes WHERE Estado=1 ORDER BY Nombre'); res.json(rows); }
+  catch (e) { res.status(500).json({ mensaje: 'No se pudieron consultar los clientes.' }); }
 });
 
 app.get('/api/clientes', exigirToken, exigirModulo('clientes'), async (req, res) => {
@@ -1301,14 +1338,14 @@ async function elegirHabitacionesPorCapacidad(connection, inicio, fin, personas,
   };
 
   let base = disponibles.find(h => Number(h.idHabitaciones) === Number(preferidaId));
-  
+
   if (!base) {
     throw new Error(`La habitación base (ID: ${preferidaId}, Sede filtro: ${idSedeFK}) no tiene unidades físicas disponibles para esas fechas.`);
   }
 
   agregar(base);
-  const ordenadas = [...disponibles].sort((a,b) => capacidad(b)-capacidad(a) || Number(a.precio)-Number(b.precio));
-  
+  const ordenadas = [...disponibles].sort((a, b) => capacidad(b) - capacidad(a) || Number(a.precio) - Number(b.precio));
+
   while (pendientes > 0) {
     const siguiente = ordenadas.find(h => (usadas.get(Number(h.idHabitaciones)) || 0) < Number(h.unidadesDisponibles));
     if (!siguiente) throw new Error(`No hay habitaciones físicas suficientes para alojar a ${huespedes} huésped(es).`);
@@ -1360,20 +1397,20 @@ async function calcularTotalDesdeInventario(connection, grupos, paqueteId, servi
   return total;
 }
 
-async function validarDisponibilidadHabitacion(connection, habitacionId, inicio, fin, excluirId=null, idSedeFK=null) {
-  if(!habitacionId||!inicio||!fin||!(fin>inicio)) throw new Error('Selecciona una habitación y fechas válidas.');
-  const [hab]=await connection.query('SELECT cantidad,estado FROM habitaciones WHERE idHabitaciones=? FOR UPDATE',[habitacionId]);
-  if(!hab.length||Number(hab[0].estado)!==1)throw new Error('La habitación no está activa.');
-  const params=[habitacionId,habitacionId,fin,inicio];
-  const excluir=excluirId?' AND r.idReservas <> ?':'';
-  if(excluirId)params.push(excluirId);
-  const [ocupadas]=await connection.query(`SELECT COALESCE(SUM(COALESCE(rhh.cantidadHabitaciones,1)),0) ocupadas
+async function validarDisponibilidadHabitacion(connection, habitacionId, inicio, fin, excluirId = null, idSedeFK = null) {
+  if (!habitacionId || !inicio || !fin || !(fin > inicio)) throw new Error('Selecciona una habitación y fechas válidas.');
+  const [hab] = await connection.query('SELECT cantidad,estado FROM habitaciones WHERE idHabitaciones=? FOR UPDATE', [habitacionId]);
+  if (!hab.length || Number(hab[0].estado) !== 1) throw new Error('La habitación no está activa.');
+  const params = [habitacionId, habitacionId, fin, inicio];
+  const excluir = excluirId ? ' AND r.idReservas <> ?' : '';
+  if (excluirId) params.push(excluirId);
+  const [ocupadas] = await connection.query(`SELECT COALESCE(SUM(COALESCE(rhh.cantidadHabitaciones,1)),0) ocupadas
     FROM reservas r LEFT JOIN reservas_has_habitaciones rhh ON rhh.idReservasFK=r.idReservas AND rhh.idHabitacionesFK=?
     WHERE (r.idHabitacionesFK=? OR rhh.idHabitacionesFK IS NOT NULL)
     AND r.fechaInicio < ? AND r.fechaFin > ?
     AND (? IS NULL OR r.idSedeFK=?)
-    AND LOWER(COALESCE(r.estado,'')) NOT IN ('cancelada','cancelado') ${excluir}`,[...params.slice(0,4),idSedeFK,idSedeFK,...params.slice(4)]);
-  if(Number(ocupadas[0]?.ocupadas||0)>=Number(hab[0].cantidad||1))throw new Error('La habitación ya está reservada en esas fechas. Escoge otra fecha o habitación.');
+    AND LOWER(COALESCE(r.estado,'')) NOT IN ('cancelada','cancelado') ${excluir}`, [...params.slice(0, 4), idSedeFK, idSedeFK, ...params.slice(4)]);
+  if (Number(ocupadas[0]?.ocupadas || 0) >= Number(hab[0].cantidad || 1)) throw new Error('La habitación ya está reservada en esas fechas. Escoge otra fecha o habitación.');
 }
 
 // ==========================================
@@ -2042,7 +2079,7 @@ app.patch('/api/reservas/:id/pago', exigirToken, exigirModulo('reservas'), async
   try {
     const [roles] = await db.query('SELECT nomRol, Estado FROM roles WHERE idRoles=? LIMIT 1', [req.sesion.idRolesFK]);
     const rol = normalizarPermiso(roles[0]?.nomRol || '');
-    if (!roles.length || Number(roles[0].Estado) !== 1 || !['administrador','admin','gerente','recepcionista','superadmin'].includes(rol)) {
+    if (!roles.length || Number(roles[0].Estado) !== 1 || !['administrador', 'admin', 'gerente', 'recepcionista', 'superadmin'].includes(rol)) {
       return res.status(403).json({ mensaje: 'Solo administración, gerencia y recepción pueden gestionar pagos.' });
     }
     const [rows] = await db.query(`SELECT r.*, c.Nombre AS NombreCliente, c.Email AS EmailCliente,
@@ -2104,15 +2141,29 @@ app.patch('/api/reservas/:id/pago', exigirToken, exigirModulo('reservas'), async
         const [fisicas] = await db.query(`SELECT u.numeroHabitacion FROM reservas_has_unidades ru JOIN habitaciones_unidades u ON u.idUnidad=ru.idUnidadFK WHERE ru.idReservasFK=? ORDER BY CAST(u.numeroHabitacion AS UNSIGNED)`, [id]);
         const [serviciosReserva] = await db.query(`SELECT s.nombre,s.precio FROM reservas_has_servicios rs JOIN servicios s ON s.idServicios=rs.Servicios_idServicios WHERE rs.Reservas_idReservas=? ORDER BY s.nombre`, [id]);
         const fechaActual = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
-        const pdf = crearPdfReserva({ codigo: reserva.codigoReserva || `LUN-${id}`, nombre: reserva.NombreCliente,
-          email: reserva.EmailCliente, estado: reserva.estado, estadoPago,
-          fechaEmision: fechaActual, fechaPago: accion === 'aprobar' ? fechaActual : null,
-          metodoPago: reserva.metodoPago, fechaInicio: reserva.fechaInicio, fechaFin: reserva.fechaFin,
-          horaLlegada: reserva.horaLlegada, horaSalida: reserva.horaSalida,
+        const pdf = crearPdfReserva({
+          codigo: reserva.codigoReserva || `LUN-${id}`,
+          nombre: reserva.NombreCliente,
+          email: reserva.EmailCliente,
+          estado: reserva.estado,
+          estadoPago,
+          fechaEmision: fechaActual,
+          fechaPago: accion === 'aprobar' ? fechaActual : null,
+          metodoPago: reserva.metodoPago,
+          fechaInicio: reserva.fechaInicio,
+          fechaFin: reserva.fechaFin,
+          horaLlegada: reserva.horaLlegada,
+          horaSalida: reserva.horaSalida,
           habitaciones: fisicas.map(x => `Hab. ${x.numeroHabitacion}`).join(', ') || reserva.Habitacion,
-          servicios: serviciosReserva, paquete: reserva.Paquete || 'No aplica', sede: reserva.CiudadSede || 'Sede principal', total: reserva.total });
+          servicios: serviciosReserva,
+          paquete: reserva.Paquete || 'No aplica',
+          sede: reserva.CiudadSede || 'Sede principal',
+          total: reserva.total
+        });
         const aprobado = accion === 'aprobar';
-        await mailer.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: reserva.EmailCliente,
+        await mailer.sendMail({
+          from: process.env.SMTP_FROM || process.env.SMTP_USER,
+          to: reserva.EmailCliente,
           subject: aprobado ? `Hotel Lunaria: pago confirmado — ${reserva.codigoReserva}` : `Hotel Lunaria: pago rechazado — ${reserva.codigoReserva}`,
           text: aprobado
             ? `Hola ${reserva.NombreCliente || ''},\nConfirmamos que recibimos tu pago de ${Number(reserva.total || 0).toLocaleString('es-CO')} COP para la reserva ${reserva.codigoReserva}.\nMétodo: ${reserva.metodoPago}.\nFecha de confirmación: ${fechaActual}.\nAdjuntamos tu comprobante actualizado. Gracias por elegir Hotel Lunaria.`
@@ -2222,7 +2273,7 @@ app.post('/api/reservas', exigirToken, exigirModulo('reservas'), async (req, res
     fechaInicio, fechaFin, estado, total, serviciosSeleccionados = [], habitacionesSeleccionadas = [], personas = 1, horaLlegada = '15:00', horaSalida = '12:00', metodoPago = 'Efectivo', comprobantePago = null
   } = req.body || {};
 
-  if (!['Efectivo','Tarjeta','Transferencia'].includes(metodoPago)) return res.status(400).json({ error: 'Método de pago no válido.' });
+  if (!['Efectivo', 'Tarjeta', 'Transferencia'].includes(metodoPago)) return res.status(400).json({ error: 'Método de pago no válido.' });
   if (metodoPago === 'Transferencia' && !comprobantePago) return res.status(400).json({ error: 'Adjunta el comprobante de transferencia.' });
   const errorFechas = validarRangoReserva(fechaInicio, horaLlegada, fechaFin, horaSalida);
   if (errorFechas) return res.status(400).json({ error: errorFechas });
@@ -2562,17 +2613,17 @@ app.delete('/api/reservas/:id', exigirToken, exigirModulo('reservas'), bloquearR
 // ==========================================
 // RUTAS DE HUÉSPEDES
 // ==========================================
-app.get('/api/huespedes/clientes', exigirToken, async(req,res)=>{
-  const rol=normalizarPermiso(req.sesion.Rol||'');
-  if(!['gerente','superadmin','administrador','admin','recepcionista'].includes(rol) && Number(req.sesion.idRolesFK) !== 3) return res.status(403).json({mensaje:'No tienes permiso para consultar los clientes asociados.'});
-  try{const [rows]=await db.query('SELECT idClientes,Nombre,Email FROM clientes WHERE Estado=1 ORDER BY Nombre');res.json(rows);}
-  catch(e){res.status(500).json({mensaje:'No se pudieron cargar los clientes.'});}
+app.get('/api/huespedes/clientes', exigirToken, async (req, res) => {
+  const rol = normalizarPermiso(req.sesion.Rol || '');
+  if (!['gerente', 'superadmin', 'administrador', 'admin', 'recepcionista'].includes(rol) && Number(req.sesion.idRolesFK) !== 3) return res.status(403).json({ mensaje: 'No tienes permiso para consultar los clientes asociados.' });
+  try { const [rows] = await db.query('SELECT idClientes,Nombre,Email FROM clientes WHERE Estado=1 ORDER BY Nombre'); res.json(rows); }
+  catch (e) { res.status(500).json({ mensaje: 'No se pudieron cargar los clientes.' }); }
 });
 
 app.get('/api/huespedes', exigirToken, async (req, res) => {
   try {
     const rolSesion = normalizarPermiso(req.sesion.Rol || '');
-    if (!['gerente','superadmin','administrador','admin','recepcionista'].includes(rolSesion) && Number(req.sesion.idRolesFK) !== 3) return res.status(403).json({error:'No tienes acceso al módulo de huéspedes.'});
+    if (!['gerente', 'superadmin', 'administrador', 'admin', 'recepcionista'].includes(rolSesion) && Number(req.sesion.idRolesFK) !== 3) return res.status(403).json({ error: 'No tienes acceso al módulo de huéspedes.' });
     const sql = `
       SELECT 
         h.idHuespedes,
@@ -2592,9 +2643,9 @@ app.get('/api/huespedes', exigirToken, async (req, res) => {
 
 app.post('/api/huespedes', exigirToken, async (req, res) => {
   const rolSesion = normalizarPermiso(req.sesion.Rol || '');
-  if (!['gerente','superadmin','administrador','admin','recepcionista'].includes(rolSesion) && Number(req.sesion.idRolesFK) !== 3) return res.status(403).json({error:'No tienes permiso para crear hospedajes.'});
+  if (!['gerente', 'superadmin', 'administrador', 'admin', 'recepcionista'].includes(rolSesion) && Number(req.sesion.idRolesFK) !== 3) return res.status(403).json({ error: 'No tienes permiso para crear hospedajes.' });
   const { Nombre, idClientesFK, fechaFinHospedaje } = req.body;
-  if (!fechaFinHospedaje || !/^\d{4}-\d{2}-\d{2}$/.test(String(fechaFinHospedaje))) return res.status(400).json({error:'La fecha de finalización del hospedaje es obligatoria.'});
+  if (!fechaFinHospedaje || !/^\d{4}-\d{2}-\d{2}$/.test(String(fechaFinHospedaje))) return res.status(400).json({ error: 'La fecha de finalización del hospedaje es obligatoria.' });
 
   if (!Nombre || !idClientesFK) {
     return res.status(400).json({ error: 'El nombre del huésped y el cliente asociado son obligatorios' });
@@ -2602,13 +2653,13 @@ app.post('/api/huespedes', exigirToken, async (req, res) => {
 
   try {
     const [[fechaValida]] = await db.query('SELECT ? >= CURDATE() AS valida', [fechaFinHospedaje]);
-    if (!fechaValida.valida) return res.status(400).json({error:'La fecha de salida prevista no puede estar en el pasado.'});
+    if (!fechaValida.valida) return res.status(400).json({ error: 'La fecha de salida prevista no puede estar en el pasado.' });
     const sql = 'INSERT INTO huespedes (Nombre, idClientesFK, fechaFinHospedaje) VALUES (?, ?, ?)';
     const [result] = await db.query(sql, [Nombre, idClientesFK, fechaFinHospedaje]);
-    
-    res.status(201).json({ 
-      message: 'Huésped registrado con éxito', 
-      idHuespedes: result.insertId 
+
+    res.status(201).json({
+      message: 'Huésped registrado con éxito',
+      idHuespedes: result.insertId
     });
   } catch (err) {
     console.error('Error al crear huésped:', err);
@@ -2618,7 +2669,7 @@ app.post('/api/huespedes', exigirToken, async (req, res) => {
 
 app.put('/api/huespedes/:id', exigirToken, async (req, res) => {
   const rolSesion = normalizarPermiso(req.sesion.Rol || '');
-  if (rolSesion === 'recepcionista' || Number(req.sesion.idRolesFK) === 3 || !['gerente','superadmin','administrador','admin'].includes(rolSesion)) return res.status(403).json({error:'No tienes permiso para editar hospedajes.'});
+  if (rolSesion === 'recepcionista' || Number(req.sesion.idRolesFK) === 3 || !['gerente', 'superadmin', 'administrador', 'admin'].includes(rolSesion)) return res.status(403).json({ error: 'No tienes permiso para editar hospedajes.' });
   const { id } = req.params;
   const { Nombre, idClientesFK, fechaFinHospedaje } = req.body;
 
@@ -2643,7 +2694,7 @@ app.put('/api/huespedes/:id', exigirToken, async (req, res) => {
 
 app.delete('/api/huespedes/:id', exigirToken, async (req, res) => {
   const rolSesion = normalizarPermiso(req.sesion.Rol || '');
-  if (rolSesion === 'recepcionista' || Number(req.sesion.idRolesFK) === 3 || !['gerente','superadmin','administrador','admin'].includes(rolSesion)) return res.status(403).json({error:'No tienes permiso para eliminar hospedajes.'});
+  if (rolSesion === 'recepcionista' || Number(req.sesion.idRolesFK) === 3 || !['gerente', 'superadmin', 'administrador', 'admin'].includes(rolSesion)) return res.status(403).json({ error: 'No tienes permiso para eliminar hospedajes.' });
   const { id } = req.params;
   try {
     const sql = 'DELETE FROM huespedes WHERE idHuespedes = ?';
@@ -2660,14 +2711,14 @@ app.delete('/api/huespedes/:id', exigirToken, async (req, res) => {
   }
 });
 
-app.patch('/api/huespedes/:id/completar', exigirToken, async(req,res)=>{
-  const rol=normalizarPermiso(req.sesion.Rol||'');
-  if(!['gerente','superadmin','administrador','admin','recepcionista'].includes(rol) && Number(req.sesion.idRolesFK) !== 3) return res.status(403).json({mensaje:'No tienes permiso para completar hospedajes.'});
-  try{
-    const [r]=await db.query("UPDATE huespedes SET estadoHospedaje='Completado' WHERE idHuespedes=? AND estadoHospedaje='En curso' AND fechaFinHospedaje<=CURDATE()",[req.params.id]);
-    if(!r.affectedRows)return res.status(409).json({mensaje:'El hospedaje solo se puede completar cuando la fecha de salida ya haya llegado.'});
-    res.json({mensaje:'Hospedaje marcado como completado.'});
-  }catch(e){res.status(500).json({mensaje:'No se pudo completar el hospedaje.'});}
+app.patch('/api/huespedes/:id/completar', exigirToken, async (req, res) => {
+  const rol = normalizarPermiso(req.sesion.Rol || '');
+  if (!['gerente', 'superadmin', 'administrador', 'admin', 'recepcionista'].includes(rol) && Number(req.sesion.idRolesFK) !== 3) return res.status(403).json({ mensaje: 'No tienes permiso para completar hospedajes.' });
+  try {
+    const [r] = await db.query("UPDATE huespedes SET estadoHospedaje='Completado' WHERE idHuespedes=? AND estadoHospedaje='En curso' AND fechaFinHospedaje<=CURDATE()", [req.params.id]);
+    if (!r.affectedRows) return res.status(409).json({ mensaje: 'El hospedaje solo se puede completar cuando la fecha de salida ya haya llegado.' });
+    res.json({ mensaje: 'Hospedaje marcado como completado.' });
+  } catch (e) { res.status(500).json({ mensaje: 'No se pudo completar el hospedaje.' }); }
 });
 
 // ==========================================
@@ -2722,47 +2773,49 @@ app.get('/api/mis-reservas', exigirToken, async (req, res) => {
   }
 });
 
-app.get('/api/configuracion/publica', async(req,res)=>{
+app.get('/api/configuracion/publica', async (req, res) => {
   try {
-    const [rows]=await db.query("SELECT clave,valor FROM configuracion_hotel WHERE clave IN ('cuenta_transferencia','titular_transferencia','banco_transferencia','iva_porcentaje','telefono_contacto','correo_contacto','direccion_contacto')");
-    res.json(Object.fromEntries(rows.map(x=>[x.clave,x.valor])));
-  } catch(e){res.status(500).json({mensaje:'No se pudo consultar la configuración.'});}
+    const [rows] = await db.query("SELECT clave,valor FROM configuracion_hotel WHERE clave IN ('cuenta_transferencia','titular_transferencia','banco_transferencia','iva_porcentaje','telefono_contacto','correo_contacto','direccion_contacto')");
+    res.json(Object.fromEntries(rows.map(x => [x.clave, x.valor])));
+  } catch (e) { res.status(500).json({ mensaje: 'No se pudo consultar la configuración.' }); }
 });
 
-app.get('/api/habitaciones/:id/imagenes', async(req,res)=>{
+app.get('/api/habitaciones/:id/imagenes', async (req, res) => {
   try {
-    const [rows]=await db.query('SELECT idImagen,ruta,orden FROM imagenes_habitaciones WHERE idHabitacionesFK=? ORDER BY orden,idImagen',[req.params.id]);
+    const [rows] = await db.query('SELECT idImagen,ruta,orden FROM imagenes_habitaciones WHERE idHabitacionesFK=? ORDER BY orden,idImagen', [req.params.id]);
     res.json(rows);
-  }catch(e){res.status(500).json({mensaje:'No se pudieron consultar las imágenes.'});}
+  } catch (e) { res.status(500).json({ mensaje: 'No se pudieron consultar las imágenes.' }); }
 });
 
-app.post('/api/habitaciones/:id/imagenes', exigirToken, exigirModulo('habitaciones'), async(req,res)=>{
-  const id=Number(req.params.id), data=String(req.body?.data||'');
-  const m=data.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
-  if(!m)return res.status(400).json({mensaje:'La imagen debe ser JPG, PNG o WEBP.'});
-  const buffer=Buffer.from(m[2],'base64');
-  if(buffer.length>5*1024*1024)return res.status(400).json({mensaje:'Cada imagen debe pesar máximo 5 MB.'});
-  try{
-    const [[h]]=await db.query('SELECT idHabitaciones FROM habitaciones WHERE idHabitaciones=?',[id]);
-    if(!h)return res.status(404).json({mensaje:'Habitación no encontrada.'});
-    const dir=path.join(__dirname,'uploads','habitaciones');fs.mkdirSync(dir,{recursive:true});
-    const ext=m[1]==='image/jpeg'?'jpg':m[1].split('/')[1], file=`${id}-${crypto.randomUUID()}.${ext}`;
-    fs.writeFileSync(path.join(dir,file),buffer);
-    const ruta=`/uploads/habitaciones/${file}`;
-    const [r]=await db.query('INSERT INTO imagenes_habitaciones (idHabitacionesFK,ruta,orden) VALUES (?,?,?)',[id,ruta,Date.now()]);
-    res.status(201).json({idImagen:r.insertId,ruta});
-  }catch(e){console.error('Subir imagen:',e);res.status(500).json({mensaje:'No se pudo guardar la imagen.'});}
+app.post('/api/habitaciones/:id/imagenes', exigirToken, exigirModulo('habitaciones'), async (req, res) => {
+  const id = Number(req.params.id);
+  const data = String(req.body?.data || '');
+  const m = data.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!m) return res.status(400).json({ mensaje: 'La imagen debe ser JPG, PNG o WEBP.' });
+  const buffer = Buffer.from(m[2], 'base64');
+  if (buffer.length > 5 * 1024 * 1024) return res.status(400).json({ mensaje: 'Cada imagen debe pesar máximo 5 MB.' });
+  try {
+    const [[h]] = await db.query('SELECT idHabitaciones FROM habitaciones WHERE idHabitaciones=?', [id]);
+    if (!h) return res.status(404).json({ mensaje: 'Habitación no encontrada.' });
+    const dir = path.join(__dirname, 'uploads', 'habitaciones'); fs.mkdirSync(dir, { recursive: true });
+    const ext = m[1] === 'image/jpeg' ? 'jpg' : m[1].split('/')[1];
+    const file = `${id}-${crypto.randomUUID()}.${ext}`;
+    fs.writeFileSync(path.join(dir, file), buffer);
+    const ruta = `/uploads/habitaciones/${file}`;
+    const [r] = await db.query('INSERT INTO imagenes_habitaciones (idHabitacionesFK,ruta,orden) VALUES (?,?,?)', [id, ruta, Date.now()]);
+    res.status(201).json({ idImagen: r.insertId, ruta });
+  } catch (e) { console.error('Subir imagen:', e); res.status(500).json({ mensaje: 'No se pudo guardar la imagen.' }); }
 });
 
-app.delete('/api/habitaciones/imagenes/:id', exigirToken, exigirModulo('habitaciones'), async(req,res)=>{
-  try{
-    const [[img]]=await db.query('SELECT ruta FROM imagenes_habitaciones WHERE idImagen=?',[req.params.id]);
-    if(!img)return res.status(404).json({mensaje:'Imagen no encontrada.'});
-    await db.query('DELETE FROM imagenes_habitaciones WHERE idImagen=?',[req.params.id]);
-    const file=path.join(__dirname,String(img.ruta).replace(/^\//,''));
-    if(file.startsWith(path.join(__dirname,'uploads','habitaciones'))) fs.promises.unlink(file).catch(()=>{});
-    res.json({mensaje:'Imagen eliminada.'});
-  }catch(e){res.status(500).json({mensaje:'No se pudo eliminar la imagen.'});}
+app.delete('/api/habitaciones/imagenes/:id', exigirToken, exigirModulo('habitaciones'), async (req, res) => {
+  try {
+    const [[img]] = await db.query('SELECT ruta FROM imagenes_habitaciones WHERE idImagen=?', [req.params.id]);
+    if (!img) return res.status(404).json({ mensaje: 'Imagen no encontrada.' });
+    await db.query('DELETE FROM imagenes_habitaciones WHERE idImagen=?', [req.params.id]);
+    const file = path.join(__dirname, String(img.ruta).replace(/^\//, ''));
+    if (file.startsWith(path.join(__dirname, 'uploads', 'habitaciones'))) fs.promises.unlink(file).catch(() => {});
+    res.json({ mensaje: 'Imagen eliminada.' });
+  } catch (e) { res.status(500).json({ mensaje: 'No se pudo eliminar la imagen.' }); }
 });
 
 function exigirGerente(req, res, next) {
@@ -2773,27 +2826,8 @@ function exigirGerente(req, res, next) {
 
 function exigirPersonal(req, res, next) {
   const rol = normalizarPermiso(req.sesion?.Rol || '');
-  if (['gerente','superadmin','administrador','admin','recepcionista','soporte','soportetecnico','personaldeapoyo'].includes(rol) || [1, 2, 3].includes(Number(req.sesion?.idRolesFK))) return next();
+  if (['gerente', 'superadmin', 'administrador', 'admin', 'recepcionista', 'soporte', 'soportetecnico', 'personaldeapoyo'].includes(rol) || [1, 2, 3].includes(Number(req.sesion?.idRolesFK))) return next();
   return res.status(403).json({ mensaje: 'No tienes permisos para esta operación.' });
-}
-
-function fechaHoraBogota(fecha, hora='00:00') {
-  const f = String(fecha || '').slice(0,10), h = String(hora || '00:00').slice(0,5);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(f) || !/^\d{2}:\d{2}$/.test(h)) return null;
-  const [y,mo,d]=f.split('-').map(Number), [hh,mm]=h.split(':').map(Number);
-  const prueba=new Date(Date.UTC(y,mo-1,d));
-  if(prueba.getUTCFullYear()!==y||prueba.getUTCMonth()!==mo-1||prueba.getUTCDate()!==d||hh>23||mm>59)return null;
-  return new Date(`${f}T${h}:00-05:00`);
-}
-
-function validarRangoReserva(fechaInicio, horaLlegada, fechaFin, horaSalida) {
-  const entrada = fechaHoraBogota(fechaInicio, horaLlegada);
-  const salida = fechaHoraBogota(fechaFin, horaSalida);
-  if (!entrada || !salida) return 'Selecciona fechas y horas válidas.';
-  if (entrada.getTime() < Date.now()) return 'La entrada no puede estar en el pasado.';
-  if (salida.getTime() < Date.now()) return 'La salida no puede estar en el pasado.';
-  if (salida <= entrada) return 'La salida debe ser posterior a la entrada.';
-  return null;
 }
 
 app.patch('/api/reservas/:id/cancelar', exigirToken, async (req, res) => {
@@ -2839,6 +2873,7 @@ app.patch('/api/reservas/:id/cancelar', exigirToken, async (req, res) => {
       "UPDATE reservas SET estado = 'Cancelada', observacionPago = CONCAT(COALESCE(observacionPago, ''), ?) WHERE idReservas = ?",
       [motivo ? `\nCancelación: ${motivo}` : '\nCancelada por solicitud.', id]
     );
+    await db.query('DELETE FROM reservas_has_unidades WHERE idReservasFK = ?', [id]);
 
     const [admins] = await db.query(
       `SELECT u.idUsuarios FROM usuarios u JOIN roles ro ON ro.idRoles = u.idRolesFK
@@ -2875,49 +2910,51 @@ app.patch('/api/reservas/:id/cancelar', exigirToken, async (req, res) => {
   }
 });
 
-app.get('/api/notificaciones', exigirToken, exigirPersonal, async (req,res) => {
+app.get('/api/notificaciones', exigirToken, exigirPersonal, async (req, res) => {
   try {
     const [rows] = await db.query(`SELECT idNotificacion,tipo,titulo,mensaje,idReservaFK,leida,creadaEn
-      FROM notificaciones WHERE idUsuarioDestinoFK=? ORDER BY creadaEn DESC LIMIT 100`,[req.sesion.idUsuarios]);
+      FROM notificaciones WHERE idUsuarioDestinoFK=? ORDER BY creadaEn DESC LIMIT 100`, [req.sesion.idUsuarios]);
     res.json(rows);
-  } catch(e) { res.status(500).json({mensaje:'No se pudieron consultar las notificaciones.'}); }
+  } catch (e) { res.status(500).json({ mensaje: 'No se pudieron consultar las notificaciones.' }); }
 });
 
-app.patch('/api/notificaciones/:id/leida', exigirToken, exigirPersonal, async(req,res)=>{
+app.patch('/api/notificaciones/:id/leida', exigirToken, exigirPersonal, async (req, res) => {
   try {
-    await db.query('UPDATE notificaciones SET leida=1 WHERE idNotificacion=? AND idUsuarioDestinoFK=?',[req.params.id,req.sesion.idUsuarios]);
-    res.json({mensaje:'Notificación actualizada.'});
-  } catch(e){res.status(500).json({mensaje:'No se pudo actualizar la notificación.'});}
+    await db.query('UPDATE notificaciones SET leida=1 WHERE idNotificacion=? AND idUsuarioDestinoFK=?', [req.params.id, req.sesion.idUsuarios]);
+    res.json({ mensaje: 'Notificación actualizada.' });
+  } catch (e) { res.status(500).json({ mensaje: 'No se pudo actualizar la notificación.' }); }
 });
 
-app.delete('/api/notificaciones/:id', exigirToken, exigirPersonal, async(req,res)=>{
-  const id=Number(req.params.id);
-  if(!Number.isInteger(id)||id<=0) return res.status(400).json({mensaje:'Notificación no válida.'});
+app.delete('/api/notificaciones/:id', exigirToken, exigirPersonal, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ mensaje: 'Notificación no válida.' });
   try {
-    const [result]=await db.query('DELETE FROM notificaciones WHERE idNotificacion=? AND idUsuarioDestinoFK=?',[id,req.sesion.idUsuarios]);
-    if(!result.affectedRows) return res.status(404).json({mensaje:'La notificación no existe o no te pertenece.'});
-    res.json({mensaje:'Notificación eliminada.'});
-  } catch(e){console.error('Eliminar notificación:',e);res.status(500).json({mensaje:'No se pudo eliminar la notificación.'});}
+    const [result] = await db.query('DELETE FROM notificaciones WHERE idNotificacion=? AND idUsuarioDestinoFK=?', [id, req.sesion.idUsuarios]);
+    if (!result.affectedRows) return res.status(404).json({ mensaje: 'La notificación no existe o no te pertenece.' });
+    res.json({ mensaje: 'Notificación eliminada.' });
+  } catch (e) { console.error('Eliminar notificación:', e); res.status(500).json({ mensaje: 'No se pudo eliminar la notificación.' }); }
 });
 
-app.get('/api/resenas', async(req,res)=>{
+app.get('/api/resenas', async (req, res) => {
   try {
-    const [rows]=await db.query(`SELECT x.idResena,x.calificacion,x.titulo,x.comentario,x.fechaCreacion,c.Nombre AS cliente
+    const [rows] = await db.query(`SELECT x.idResena,x.calificacion,x.titulo,x.comentario,x.fechaCreacion,c.Nombre AS cliente
       FROM resenas x JOIN clientes c ON c.idClientes=x.idClientesFK WHERE x.publicada=1
       ORDER BY x.fechaCreacion DESC LIMIT 200`);
     res.json(rows);
-  } catch(e){res.status(500).json({mensaje:'No se pudieron consultar las reseñas.'});}
+  } catch (e) { res.status(500).json({ mensaje: 'No se pudieron consultar las reseñas.' }); }
 });
 
-app.post('/api/resenas', exigirToken, async(req,res)=>{
-  const rol=normalizarPermiso(req.sesion.Rol||'');
-  if(rol!=='cliente' || !req.sesion.idClientesFK) return res.status(403).json({mensaje:'Solo los clientes autenticados pueden publicar reseñas.'});
-  const calificacion=Number(req.body?.calificacion), titulo=String(req.body?.titulo||'').trim().slice(0,120), comentario=String(req.body?.comentario||'').trim().slice(0,2000);
-  if(!Number.isInteger(calificacion)||calificacion<1||calificacion>5||!comentario) return res.status(400).json({mensaje:'Selecciona una calificación de 1 a 5 y escribe tu reseña.'});
+app.post('/api/resenas', exigirToken, async (req, res) => {
+  const rol = normalizarPermiso(req.sesion.Rol || '');
+  if (rol !== 'cliente' || !req.sesion.idClientesFK) return res.status(403).json({ mensaje: 'Solo los clientes autenticados pueden publicar reseñas.' });
+  const calificacion = Number(req.body?.calificacion);
+  const titulo = String(req.body?.titulo || '').trim().slice(0, 120);
+  const comentario = String(req.body?.comentario || '').trim().slice(0, 2000);
+  if (!Number.isInteger(calificacion) || calificacion < 1 || calificacion > 5 || !comentario) return res.status(400).json({ mensaje: 'Selecciona una calificación de 1 a 5 y escribe tu reseña.' });
   try {
-    const [r]=await db.query('INSERT INTO resenas (idClientesFK,calificacion,titulo,comentario) VALUES (?,?,?,?)',[req.sesion.idClientesFK,calificacion,titulo,comentario]);
-    res.status(201).json({mensaje:'Reseña enviada.',idResena:r.insertId});
-  } catch(e){res.status(500).json({mensaje:'No se pudo guardar la reseña.'});}
+    const [r] = await db.query('INSERT INTO resenas (idClientesFK,calificacion,titulo,comentario) VALUES (?,?,?,?)', [req.sesion.idClientesFK, calificacion, titulo, comentario]);
+    res.status(201).json({ mensaje: 'Reseña enviada.', idResena: r.insertId });
+  } catch (e) { res.status(500).json({ mensaje: 'No se pudo guardar la reseña.' }); }
 });
 
 app.get('/api/informes/estadisticas', exigirToken, exigirGerente, async (req, res) => {
@@ -3024,8 +3061,7 @@ app.get('/api/informes/estadisticas', exigirToken, exigirGerente, async (req, re
       subtotal: a.subtotal + s.subtotal,
       iva: a.iva + s.iva,
       ingresosTotales: a.ingresosTotales + s.ingresosTotales
-    }), { reservas: 0, subtotal: 0, ivа: 0, ingresosTotales: 0 });
-    totalGeneralSedes.iva = detalleCompleto.reduce((a, s) => a + s.iva, 0);
+    }), { reservas: 0, subtotal: 0, iva: 0, ingresosTotales: 0 });
 
     res.json({
       periodo,
@@ -3180,59 +3216,64 @@ app.get('/api/informes/estadisticas/pdf', exigirToken, exigirGerente, async (req
   }
 });
 
-app.get('/api/informes/mensual' , exigirToken, exigirGerente, async(req,res)=>{
-  const mes=String(req.query.mes||'');
-  if(!/^\d{4}-\d{2}$/.test(mes)) return res.status(400).json({mensaje:'Indica el mes con formato AAAA-MM.'});
+app.get('/api/informes/mensual', exigirToken, exigirGerente, async (req, res) => {
+  const mes = String(req.query.mes || '');
+  if (!/^\d{4}-\d{2}$/.test(mes)) return res.status(400).json({ mensaje: 'Indica el mes con formato AAAA-MM.' });
   try {
-    const [rows]=await db.query(`SELECT DATE_FORMAT(fechaInicio,'%Y-%m') AS mes,
+    const [rows] = await db.query(`SELECT DATE_FORMAT(fechaInicio,'%Y-%m') AS mes,
       COUNT(*) AS totalReservas,SUM(CASE WHEN LOWER(estado)='cancelada' THEN 1 ELSE 0 END) AS canceladas,
       SUM(CASE WHEN LOWER(estado) IN ('confirmada','completada') THEN 1 ELSE 0 END) AS confirmadas,
       COALESCE(SUM(CASE WHEN LOWER(estado)<>'cancelada' THEN total ELSE 0 END),0) AS ingresos
       FROM reservas WHERE fechaInicio>=STR_TO_DATE(CONCAT(?,'-01'),'%Y-%m-%d')
       AND fechaInicio<DATE_ADD(STR_TO_DATE(CONCAT(?,'-01'),'%Y-%m-%d'),INTERVAL 1 MONTH)
-      GROUP BY DATE_FORMAT(fechaInicio,'%Y-%m')`,[mes,mes]);
-    res.json(rows[0]||{mes,totalReservas:0,canceladas:0,confirmadas:0,ingresos:0});
-  } catch(e){res.status(500).json({mensaje:'No se pudo generar el informe mensual.'});}
+      GROUP BY DATE_FORMAT(fechaInicio,'%Y-%m')`, [mes, mes]);
+    res.json(rows[0] || { mes, totalReservas: 0, canceladas: 0, confirmadas: 0, ingresos: 0 });
+  } catch (e) { res.status(500).json({ mensaje: 'No se pudo generar el informe mensual.' }); }
 });
 
-app.post('/api/usuarios/:id/restablecer-contrasena', exigirToken, exigirGerente, async(req,res)=>{
-  const id=Number(req.params.id);
+app.post('/api/usuarios/:id/restablecer-contrasena', exigirToken, exigirGerente, async (req, res) => {
+  const id = Number(req.params.id);
   try {
-    const [[u]]=await db.query('SELECT idUsuarios,Nombre,Email FROM usuarios WHERE idUsuarios=? AND Estado=1 LIMIT 1',[id]);
-    if(!u) return res.status(404).json({mensaje:'Usuario no encontrado o inactivo.'});
-    const mailer=crearTransportadorCorreo();
-    if(!mailer) return res.status(503).json({mensaje:'El servicio de correo no está configurado.'});
-    const token=crypto.randomBytes(32).toString('hex'), hash=crypto.createHash('sha256').update(token).digest('hex');
-    await db.query('UPDATE recuperacion_admin SET usado=1 WHERE idUsuariosFK=? AND usado=0',[id]);
+    const [[u]] = await db.query('SELECT idUsuarios,Nombre,Email FROM usuarios WHERE idUsuarios=? AND Estado=1 LIMIT 1', [id]);
+    if (!u) return res.status(404).json({ mensaje: 'Usuario no encontrado o inactivo.' });
+    const mailer = crearTransportadorCorreo();
+    if (!mailer) return res.status(503).json({ mensaje: 'El servicio de correo no está configurado.' });
+    const token = crypto.randomBytes(32).toString('hex');
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    await db.query('UPDATE recuperacion_admin SET usado=1 WHERE idUsuariosFK=? AND usado=0', [id]);
     await db.query(`INSERT INTO recuperacion_admin (idUsuariosFK,tokenHash,expiraEn,solicitadoPorFK)
-      VALUES (?,?,DATE_ADD(NOW(),INTERVAL 30 MINUTE),?)`,[id,hash,req.sesion.idUsuarios]);
+      VALUES (?,?,DATE_ADD(NOW(),INTERVAL 30 MINUTE),?)`, [id, hash, req.sesion.idUsuarios]);
     const base = process.env.FRONTEND_URL || req.headers.origin || 'https://lunariasuites.vercel.app';
-    const link=`${base.replace(/\/$/,'')}/restablecer-contrasena?token=${token}`;
-    await mailer.sendMail({from:process.env.SMTP_FROM||process.env.SMTP_USER,to:u.Email,
-      subject:'Hotel Lunaria: restablece tu contraseña',
-      text:`Hola ${u.Nombre},\nEl gerente solicitó un enlace para que tú mismo crees una nueva contraseña. Abre este enlace (válido por 30 minutos): ${link}\nSi no esperabas este correo, ignóralo.`});
+    const link = `${base.replace(/\/$/, '')}/restablecer-contrasena?token=${token}`;
+    await mailer.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: u.Email,
+      subject: 'Hotel Lunaria: restablece tu contraseña',
+      text: `Hola ${u.Nombre},\nEl gerente solicitó un enlace para que tú mismo crees una nueva contraseña. Abre este enlace (válido por 30 minutos): ${link}\nSi no esperabas este correo, ignóralo.`
+    });
     await db.query('INSERT INTO logs_seguridad (idUsuarioActorFK,idUsuarioObjetivoFK,accion,detalle) VALUES (?,?,?,?)',
-      [req.sesion.idUsuarios,id,'RESTABLECIMIENTO_SOLICITADO','Se envió enlace seguro por correo.']);
-    res.json({mensaje:'Se envió un enlace seguro al correo del usuario. No se mostró ni modificó su contraseña.'});
-  } catch(e){console.error('Restablecer clave gerente:',e);res.status(500).json({mensaje:'No se pudo enviar el enlace de restablecimiento.'});}
+      [req.sesion.idUsuarios, id, 'RESTABLECIMIENTO_SOLICITADO', 'Se envió enlace seguro por correo.']);
+    res.json({ mensaje: 'Se envió un enlace seguro al correo del usuario. No se mostró ni modificó su contraseña.' });
+  } catch (e) { console.error('Restablecer clave gerente:', e); res.status(500).json({ mensaje: 'No se pudo enviar el enlace de restablecimiento.' }); }
 });
 
-app.post('/api/auth/restablecer-enlace', async(req,res)=>{
-  const token=String(req.body?.token||''), nueva=String(req.body?.nuevaContrasena||'');
-  if(!/^[a-f0-9]{64}$/.test(token)||nueva.length<8) return res.status(400).json({mensaje:'Enlace no válido o contraseña demasiado corta (mínimo 8 caracteres).'});
-  try{
-    const hash=crypto.createHash('sha256').update(token).digest('hex');
-    const [[r]]=await db.query('SELECT id,idUsuariosFK FROM recuperacion_admin WHERE tokenHash=? AND usado=0 AND expiraEn>NOW() LIMIT 1',[hash]);
-    if(!r)return res.status(400).json({mensaje:'El enlace venció o ya fue utilizado.'});
-    await db.query('UPDATE usuarios SET contraseña=? WHERE idUsuarios=?',[await bcrypt.hash(nueva,10),r.idUsuariosFK]);
-    await db.query('UPDATE recuperacion_admin SET usado=1 WHERE id=?',[r.id]);
+app.post('/api/auth/restablecer-enlace', async (req, res) => {
+  const token = String(req.body?.token || '');
+  const nueva = String(req.body?.nuevaContrasena || '');
+  if (!/^[a-f0-9]{64}$/.test(token) || nueva.length < 8) return res.status(400).json({ mensaje: 'Enlace no válido o contraseña demasiado corta (mínimo 8 caracteres).' });
+  try {
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    const [[r]] = await db.query('SELECT id,idUsuariosFK FROM recuperacion_admin WHERE tokenHash=? AND usado=0 AND expiraEn>NOW() LIMIT 1', [hash]);
+    if (!r) return res.status(400).json({ mensaje: 'El enlace venció o ya fue utilizado.' });
+    await db.query('UPDATE usuarios SET contraseña=? WHERE idUsuarios=?', [await bcrypt.hash(nueva, 10), r.idUsuariosFK]);
+    await db.query('UPDATE recuperacion_admin SET usado=1 WHERE id=?', [r.id]);
     await db.query('INSERT INTO logs_seguridad (idUsuarioActorFK,idUsuarioObjetivoFK,accion,detalle) VALUES (?,?,?,?)',
-      [r.idUsuariosFK,r.idUsuariosFK,'CONTRASENA_RESTABLECIDA','El usuario creó su contraseña mediante enlace seguro.']);
-    res.json({mensaje:'Tu contraseña fue creada correctamente. Ya puedes iniciar sesión.'});
-  }catch(e){res.status(500).json({mensaje:'No se pudo restablecer la contraseña.'});}
+      [r.idUsuariosFK, r.idUsuariosFK, 'CONTRASENA_RESTABLECIDA', 'El usuario creó su contraseña mediante enlace seguro.']);
+    res.json({ mensaje: 'Tu contraseña fue creada correctamente. Ya puedes iniciar sesión.' });
+  } catch (e) { res.status(500).json({ mensaje: 'No se pudo restablecer la contraseña.' }); }
 });
 
-db.query("SELECT valor FROM configuracion_hotel WHERE clave='iva_porcentaje' LIMIT 1").then(([rows])=>{if(rows[0]&&Number.isFinite(Number(rows[0].valor)))ivaPorcentajeActual=Number(rows[0].valor);}).catch(()=>{});
+db.query("SELECT valor FROM configuracion_hotel WHERE clave='iva_porcentaje' LIMIT 1").then(([rows]) => { if (rows[0] && Number.isFinite(Number(rows[0].valor))) ivaPorcentajeActual = Number(rows[0].valor); }).catch(() => {});
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
