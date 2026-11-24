@@ -2676,25 +2676,25 @@ app.get('/api/mis-reservas', exigirToken, async (req, res) => {
 
     if (!clienteId && req.sesion.idUsuarios) {
       const [uRows] = await db.query(
-        'SELECT idUsuarios, Nombre, Correo, Telefono, idRolesFK, idClientesFK FROM usuarios WHERE idUsuarios = ? LIMIT 1',
+        'SELECT idUsuarios, Nombre, Email, Telefono, idRolesFK, idClientesFK FROM usuarios WHERE idUsuarios = ? LIMIT 1',
         [req.sesion.idUsuarios]
       );
       const u = uRows[0];
 
       if (u?.idClientesFK) {
         clienteId = Number(u.idClientesFK);
-      } else if (u?.Correo) {
+      } else if (u?.Email) {
         const [cRows] = await db.query(
-          'SELECT idClientes FROM clientes WHERE LOWER(TRIM(correo)) = LOWER(TRIM(?)) LIMIT 1',
-          [u.Correo]
+          'SELECT idClientes FROM clientes WHERE LOWER(TRIM(Email)) = LOWER(TRIM(?)) LIMIT 1',
+          [u.Email]
         );
         if (cRows[0]?.idClientes) {
           clienteId = Number(cRows[0].idClientes);
           await db.query('UPDATE usuarios SET idClientesFK = ? WHERE idUsuarios = ?', [clienteId, u.idUsuarios]);
         } else if (Number(u.idRolesFK) === 4) {
           const [ins] = await db.query(
-            'INSERT INTO clientes (nombre, correo, telefono) VALUES (?, ?, ?)',
-            [u.Nombre || 'Cliente', u.Correo, u.Telefono || '']
+            'INSERT INTO clientes (Nombre, Email, Telefono, Estado) VALUES (?, ?, ?, 1)',
+            [u.Nombre || 'Cliente', u.Email, u.Telefono || '']
           );
           clienteId = Number(ins.insertId);
           await db.query('UPDATE usuarios SET idClientesFK = ? WHERE idUsuarios = ?', [clienteId, u.idUsuarios]);
