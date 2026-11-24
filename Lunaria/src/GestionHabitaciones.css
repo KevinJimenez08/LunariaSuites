@@ -66,3 +66,70 @@
 .lunaria-admin-shell .role-row>span:has(.status-badge),
 .lunaria-admin-shell .role-row>span:has([style*="border-radius"]){display:flex;align-items:center;justify-content:center;text-align:center;}
 .lunaria-admin-shell .role-row>span:has(.status-badge)>small{display:block;text-align:center;}
+
+.lunaria-room-dashboard,
+.lunaria-room-unit-card,
+.lunaria-room-collapse-bar {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.lunaria-room-unit-card strong,
+.lunaria-room-unit-id,
+.lunaria-room-guest,
+.reserva-habitaciones-fisicas {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .lunaria-room-search {
+    min-width: 0;
+    width: 100%;
+    max-width: none;
+  }
+
+  .lunaria-room-search input {
+    font-size: 16px;
+  }
+
+  .lunaria-room-collapse-bar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .lunaria-room-collapse-bar button {
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 520px) {
+  .lunaria-room-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 8px;
+  }
+
+  .lunaria-room-filter {
+    width: 100%;
+    min-height: 40px;
+    flex: initial;
+  }
+
+  .lunaria-room-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .lunaria-room-unit-card {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .lunaria-room-stats,
+  .lunaria-room-filters,
+  .lunaria-room-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -725,3 +725,205 @@
 .lunaria-admin-shell .reservas-table .table-header,.lunaria-admin-shell .reservas-table .role-row{align-items:center;text-align:left;}
 .lunaria-admin-shell .reservas-table .role-row>span{min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px;}
 .lunaria-admin-shell .reservas-table .role-row>span:has(.status-badge){align-items:flex-start;}
+
+
+.dashboard-container,
+.main-content,
+.topbar,
+.roles-header-card,
+.roles-table-container,
+.admin-filter-bar {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.modal-content {
+  box-sizing: border-box;
+  width: min(440px, 100%);
+}
+
+@media (max-width: 960px) {
+  .dashboard-container {
+    flex-direction: column;
+    background-attachment: scroll;
+    background-size: cover;
+    overflow-x: hidden;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    flex: none;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    border-right: 0;
+    border-bottom: 1px solid rgba(235, 217, 180, 0.6);
+    z-index: 90;
+  }
+
+  .sidebar-logo {
+    margin-bottom: 0;
+    margin-right: 4px;
+    flex: 0 0 auto;
+  }
+
+  .sidebar-logo img {
+    width: 38px;
+    height: 38px;
+    object-fit: contain;
+  }
+
+  .nav-item {
+    flex: 0 0 auto;
+    padding: 9px 13px;
+    gap: 8px;
+    font-size: 0.92rem;
+    white-space: nowrap;
+    min-height: 40px;
+  }
+
+  .main-content {
+    margin: 10px;
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .stats-container {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .stat-card {
+    min-width: 0 !important;
+  }
+
+  .stat-label {
+    white-space: normal !important;
+    line-height: 1.25;
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    padding: 12px 16px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .topbar h1 {
+    font-size: 1.35rem;
+  }
+
+  .topbar-actions {
+    gap: 10px;
+    font-size: 1.25rem;
+  }
+
+  .roles-header-card {
+    padding: 12px 14px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .roles-header-card h2 {
+    font-size: 1.3rem;
+    flex: 1 1 auto;
+  }
+
+  .search-box {
+    order: 3;
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .btn-add-role {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+  }
+
+  .admin-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-filter-bar input,
+  .admin-filter-bar select,
+  .admin-filter-bar button {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+  }
+
+  .roles-table-container {
+    padding: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .roles-table .table-header,
+  .roles-table .role-row {
+    min-width: 640px;
+    padding: 11px 14px;
+    font-size: 0.9rem;
+  }
+
+  .servicios-table .table-header,
+  .servicios-table .role-row {
+    min-width: 720px;
+    padding: 11px 14px;
+    font-size: 0.9rem;
+  }
+
+  .search-box input,
+  .admin-filter-bar input,
+  .admin-filter-bar select,
+  .modal-field input,
+  .modal-field select,
+  .modal-field textarea {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    margin: 6px;
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .stats-container {
+    grid-template-columns: 1fr !important;
+  }
+
+  .modal-overlay {
+    padding: 12px;
+  }
+
+  .modal-content {
+    padding: 18px 16px;
+    border-radius: 14px;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .btn-cancelar,
+  .btn-guardar {
+    width: 100%;
+    min-height: 42px;
+    text-align: center;
+  }
+}

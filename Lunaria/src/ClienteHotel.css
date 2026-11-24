@@ -477,3 +477,83 @@
   .lunaria-chat-compact .lunaria-chat-inbox{flex:1 1 auto;max-height:none}
   .lunaria-chat-compact .lunaria-chat-main{flex:1 1 auto;min-height:0}
 }
+
+@media (max-width: 700px) {
+  .lunaria-links.open {
+    max-height: calc(100dvh - 72px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .lunaria-perks {
+    width: 100%;
+    max-width: 340px;
+  }
+
+  .lunaria-perks span {
+    text-align: left;
+  }
+
+  .lunaria-booking-form input,
+  .lunaria-booking-form select,
+  .lunaria-filter select,
+  .lunaria-option-label select,
+  .lunaria-payment-options input,
+  .lunaria-payment-options select,
+  .lunaria-change-password input,
+  .lunaria-review-form input,
+  .lunaria-review-form textarea,
+  .lunaria-review-form select,
+  .lunaria-comments-panel textarea {
+    font-size: 16px;
+  }
+
+  .lunaria-change-password,
+  .lunaria-comments-panel {
+    padding: 16px;
+  }
+
+  .lunaria-comments-list article {
+    max-width: 94%;
+  }
+}
+
+@media (max-width: 420px) {
+  .lunaria-nav {
+    padding: 0 14px;
+  }
+
+  .lunaria-brand strong {
+    font-size: 16px;
+    letter-spacing: 2.5px;
+  }
+
+  .lunaria-brand small {
+    font-size: 8px;
+    letter-spacing: 2px;
+  }
+
+  .lunaria-card-bottom,
+  .lunaria-package-content > div {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  .lunaria-card-bottom > span,
+  .lunaria-card-bottom a,
+  .lunaria-package-content > div a {
+    white-space: normal;
+  }
+
+  .lunaria-service-card {
+    grid-template-columns: minmax(96px, 35%) minmax(0, 1fr);
+  }
+
+  .lunaria-chat-bubble {
+    min-width: auto;
+    height: 48px;
+    padding: 0 14px;
+    font-size: 13px;
+    gap: 7px;
+  }
+}
